@@ -1,0 +1,3 @@
+[submodule "deps/janet"]
+	path = deps/janet
+	url = https://github.com/janet-lang/janet
