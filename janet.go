@@ -4,14 +4,14 @@ package main
 #cgo CFLAGS: -fPIC -O2
 #cgo CFLAGS: -I ${SRCDIR}/deps/janet/src/include
 #cgo CFLAGS: -I ${SRCDIR}/deps/janet/src/conf
-#cgo LDFLAGS: -lm -ldl -lrt -lpthread
-#include "deps/janet/build/c/janet.c"
+#cgo LDFLAGS: -lm -ldl -lpthread ${SRCDIR}/deps/janet/build/libjanet.a
 #include "janet.h"
 */
 import "C"
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"unsafe"
 )
@@ -27,7 +27,7 @@ func ParentEnv() *C.JanetTable {
 func EvalString(code string) (C.Janet, error) {
 	C.janet_init()
 	env := C.janet_core_env(ParentEnv())
-	var out C.Janet 
+	var out C.Janet
 	errno := C.janet_dostring(env, C.CString(code), C.CString("spinnerette"), &out)
 	if errno != 0 {
 		return C.janet_wrap_nil(), errors.New(fmt.Sprintf("Janet error: %d", errno))
@@ -64,4 +64,9 @@ func EvalFilePath(path string) (C.Janet, error) {
 
 func ToString(janet C.Janet) string {
 	return C.GoString((*C.char)(unsafe.Pointer(C.janet_to_string(janet))))
+}
+
+func RequestToJanet(r *http.Request) C.Janet {
+	// TODO
+	return C.janet_wrap_nil()
 }
