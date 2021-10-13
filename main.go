@@ -36,6 +36,7 @@ func main() {
 	} else if parsedFlags.Method == "fastcgi" || parsedFlags.Method == "fcgi" {
 		var listen net.Listener
 		defer listen.Close()
+
 		var err error
 		if len(parsedFlags.Socket) > 0 {
 			log.Printf("Starting FastCGI server on socket %s", parsedFlags.Socket)
@@ -50,6 +51,7 @@ func main() {
 				log.Fatal(err)
 			}
 		}
+
 		fcgi.Serve(listen, handler)
 	} else if parsedFlags.Method == "cgi" {
 		log.Printf("Running as CGI program")
@@ -87,12 +89,24 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		http.NotFound(w, r)
 	} else if filepath.Ext(path) == ".janet" {
-		janet, err := EvalFilePath(path)
+		Init()
 		defer DeInit()
+
+		env, err := RequestEnv(r)
 		if err != nil {
-			log.Printf(err.Error())
+			http.Error(w, "Could not build request env", 500)
+			log.Println(err)
+			return
 		}
-		w.Write([]byte(ToString(janet)))
+
+		janet, err := EvalFilePath(path, env)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			log.Println(err.Error())
+			return
+		}
+
+		WriteResponse(janet, w)
 	} else {
 		http.ServeFile(w, r, path)
 	}
