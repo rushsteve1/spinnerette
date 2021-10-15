@@ -5,6 +5,11 @@ package main
 #cgo CFLAGS: -I ${SRCDIR}/deps/janet/build
 #cgo LDFLAGS: -lm -ldl -lrt -lpthread ${SRCDIR}/deps/janet/build/libjanet.a
 #include "janet.h"
+Janet loader_shim(int32_t argc, Janet *argv);
+const JanetReg cfuns[] = {
+   {"spin/module-loader", loader_shim, "(spin/module-loader)\n\nLoads modules from Spinnerette"},
+   {NULL, NULL, NULL}
+};
 */
 import "C"
 import (
@@ -28,8 +33,15 @@ func CoreEnv() *C.JanetTable {
 	return C.janet_core_env((*C.JanetTable)(C.NULL))
 }
 
-func RequestEnv(r *http.Request) (*C.JanetTable, error) {
+func SpinEnv() *C.JanetTable {
 	env := CoreEnv()
+	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.cfuns)))
+	InitModules(env)
+	return env
+}
+
+func RequestEnv(r *http.Request) (*C.JanetTable, error) {
+	env := SpinEnv()
 
 	req, err := RequestToJanet(r)
 	if err != nil {
@@ -57,6 +69,34 @@ func EvalFilePath(path string, env *C.JanetTable) (C.Janet, error) {
 	}
 
 	return out, nil
+}
+
+func EvalBytes(code []byte, env *C.JanetTable) (C.Janet, error) {
+	if len(code) == 0 {
+		return C.janet_wrap_nil(), errors.New("Code is empty")
+	}
+
+	var out C.Janet
+	errno := C.janet_dobytes(env, (*C.uchar)(unsafe.Pointer(&code[0])), C.int(len(code)), C.CString("spinnerette internal"), &out)
+	if errno != 0 {
+		return C.janet_wrap_nil(), errors.New(fmt.Sprintf("Janet error: %d", errno))
+	}
+
+	return out, nil
+}
+
+func EvalString(code string, env *C.JanetTable) (C.Janet, error) {
+	return EvalBytes([]byte(code), env)
+}
+
+func EvalBind(env *C.JanetTable, key string, code string, doc string) error {
+	j, err := EvalString(code, env)
+	if err != nil {
+		return err
+	}
+
+	bindToEnv(env, key, j, doc)
+	return nil
 }
 
 func ToString(janet C.Janet) string {
@@ -116,10 +156,15 @@ func RequestToJanet(r *http.Request) (C.Janet, error) {
 func bindToEnv(env *C.JanetTable, key string, value C.Janet, doc string) {
 	table := C.janet_table(512)
 	C.janet_table_put(table, jkey("doc"), jstr(doc))
-	C.janet_table_put(table, jkey("source-map"), C.janet_wrap_nil())
+	C.janet_table_put(table, jkey("source-map"), jstr("janet.go"))
 	C.janet_table_put(table, jkey("value"), value)
 
 	C.janet_table_put(env, jsym(key), C.janet_wrap_table(table))
+}
+
+func getEnvValue(env *C.JanetTable, key string) C.Janet {
+	table := C.janet_unwrap_table(C.janet_table_get(env, jsym(key)))
+	return C.janet_table_get(table, jkey("value"))
 }
 
 func jbuf(b []byte) C.Janet {

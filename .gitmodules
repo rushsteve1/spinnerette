@@ -1,3 +1,12 @@
 [submodule "deps/janet"]
 	path = deps/janet
 	url = https://github.com/janet-lang/janet
+[submodule "deps/janet-html"]
+	path = deps/janet-html
+	url = https://github.com/swlkr/janet-html
+[submodule "deps/spork"]
+	path = deps/spork
+	url = https://github.com/janet-lang/spork
+[submodule "spork"]
+	path = spork
+	url = https://github.com/janet-lang/spork

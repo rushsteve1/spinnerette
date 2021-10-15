@@ -88,26 +88,50 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		http.NotFound(w, r)
-	} else if filepath.Ext(path) == ".janet" {
-		Init()
-		defer DeInit()
+		return
+	}
 
+	switch filepath.Ext(path) {
+	case ".janet":
+		h.janetHandler(w, r, path)
+	case ".temple":
+		h.templeHandler(w, r, path)
+	default:
+		http.ServeFile(w, r, path)
+	}
+}
+
+func (h Handler) janetHandler(w http.ResponseWriter, r *http.Request, path string) {
+	Init()
+	defer DeInit()
+
+	env, err := RequestEnv(r)
+	if err != nil {
+		http.Error(w, "Could not build request env", 500)
+		log.Println(err)
+		return
+	}
+
+	janet, err := EvalFilePath(path, env)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		log.Println(err.Error())
+		return
+	}
+
+	WriteResponse(janet, w)
+}
+
+func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path string) {
+	Init()
+	defer DeInit()
+
+	/*
 		env, err := RequestEnv(r)
 		if err != nil {
 			http.Error(w, "Could not build request env", 500)
 			log.Println(err)
 			return
 		}
-
-		janet, err := EvalFilePath(path, env)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			log.Println(err.Error())
-			return
-		}
-
-		WriteResponse(janet, w)
-	} else {
-		http.ServeFile(w, r, path)
-	}
+	*/
 }
