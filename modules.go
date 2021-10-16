@@ -17,9 +17,21 @@ import (
 var libs embed.FS
 
 var fileMappings = map[string]string{
-	"html":         "deps/janet-html/src/janet-html.janet",
-	"spork/http":   "deps/spork/spork/http.janet",
-	"spork/temple": "deps/spork/spork/temple.janet",
+	"html":             "deps/janet-html/src/janet-html.janet",
+	"spork/argparse":   "deps/spork/spork/argparse.janet",
+	"spork/ev-utils":   "deps/spork/spork/ev-utils.janet",
+	"spork/fmt":        "deps/spork/spork/fmt.janet",
+	"spork/generators": "deps/spork/spork/generators.janet",
+	"spork/http":       "deps/spork/spork/http.janet",
+	"spork/init":       "deps/spork/spork/init.janet",
+	"spork/misc":       "deps/spork/spork/misc.janet",
+	"spork/msg":        "deps/spork/spork/msg.janet",
+	"spork/netrepl":    "deps/spork/spork/netrepl.janet",
+	"spork/path":       "deps/spork/spork/path.janet",
+	"spork/regex":      "deps/spork/spork/regex.janet",
+	"spork/rpc":        "deps/spork/spork/rpc.janet",
+	"spork/temple":     "deps/spork/spork/temple.janet",
+	"spork/test":       "deps/spork/spork/test.janet",
 }
 
 //export ModuleLoader

@@ -126,12 +126,19 @@ func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path stri
 	Init()
 	defer DeInit()
 
-	/*
-		env, err := RequestEnv(r)
-		if err != nil {
-			http.Error(w, "Could not build request env", 500)
-			log.Println(err)
-			return
-		}
-	*/
+	env, err := RequestEnv(r)
+	if err != nil {
+		http.Error(w, "Could not build request env", 500)
+		log.Println(err)
+		return
+	}
+
+	janet, err := RenderTemple(path, env)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		log.Println(err.Error())
+		return
+	}
+
+	WriteResponse(janet, w)
 }
