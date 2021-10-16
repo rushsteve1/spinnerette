@@ -3,7 +3,7 @@ package main
 /*
 #cgo CFLAGS: -fPIC -O2
 #cgo CFLAGS: -I ${SRCDIR}/deps/janet/build
-#cgo LDFLAGS: -lm -ldl -lrt -lpthread ${SRCDIR}/deps/janet/build/libjanet.a
+#cgo LDFLAGS: -lm -ldl -lpthread ${SRCDIR}/deps/janet/build/libjanet.a
 #include "janet.h"
 Janet loader_shim(int32_t argc, Janet *argv);
 const JanetReg cfuns[] = {
