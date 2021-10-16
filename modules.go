@@ -4,6 +4,7 @@ package main
 import "C"
 import (
 	"embed"
+	"fmt"
 )
 
 /*
@@ -35,8 +36,15 @@ func ModuleLoader(path *C.char) *C.JanetTable {
 }
 
 func InitModules(env *C.JanetTable) {
-	// TODO replace this with something other than the identity function
-	identity := getEnvValue(env, "identity")
+	keys := ""
+	for k := range fileMappings {
+		keys += fmt.Sprintf("\"%s\" ", k)
+	}
+
+	// This does a little bit of meta-programming trickery to create the predicate
+	// function that validates built-in Spinnerette library paths
+	pred := fmt.Sprintf("(fn [path] (find |(= path $) [%s] nil))", keys)
+	identity, _ := EvalString(pred, env)
 	tuple := []C.Janet{identity, jkey("spinnerette")}
 
 	paths := getEnvValue(env, "module/paths")

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"unsafe"
@@ -112,17 +113,18 @@ func WriteResponse(j C.Janet, w http.ResponseWriter) {
 	switch C.janet_type(j) {
 	case C.JANET_STRING:
 		w.Write([]byte(ToString(j)))
-	case C.JANET_NIL:
-		http.Error(w, "Nil response", 500)
+	case C.JANET_STRUCT:
+		ResponseFromJanet(w, C.janet_struct_to_table(C.janet_unwrap_struct(j)))
+	case C.JANET_TABLE:
+		ResponseFromJanet(w, C.janet_unwrap_table(j))
 	default:
-		w.Write([]byte(PrettyPrint(j)))
+		http.Error(w, "Script did not return a string or response object", 500)
 	}
 }
 
 // This mirrors the structure of the Request object provided by Circlet
 // https://github.com/janet-lang/circlet
 func RequestToJanet(r *http.Request) (C.Janet, error) {
-
 	body, err := io.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
@@ -151,7 +153,40 @@ func RequestToJanet(r *http.Request) (C.Janet, error) {
 	return C.janet_wrap_table(table), nil
 }
 
-// func ResponseFromJanet(j C.Janet) {}
+func ResponseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
+	headers := C.janet_table_get(table, jkey("headers"))
+	// TODO there is definitely a better way to do this
+	// Some way to handle "dictionary" types
+	if C.janet_checktype(headers, C.JANET_STRUCT) > 0 {
+		headers = C.janet_wrap_table(C.janet_struct_to_table(C.janet_unwrap_struct(headers)))
+	}
+	if C.janet_checktype(headers, C.JANET_TABLE) > 0 {
+		h := C.janet_unwrap_table(headers)
+		kv := &*h.data
+		for kv != (*C.JanetKV)(C.NULL) {
+			k := ToString(kv.key)
+			v := ToString(kv.value)
+			w.Header().Add(k, v)
+			kv = C.janet_dictionary_next(h.data, h.capacity, kv)
+		}
+	} else {
+		log.Printf(":headers was not a table or struct and will not be used")
+	}
+
+	status := C.janet_table_get(table, jkey("status"))
+	if C.janet_checktype(status, C.JANET_NUMBER) > 0 {
+		w.WriteHeader(int(C.janet_unwrap_integer(status)))
+	} else {
+		http.Error(w, ":status key was not a number", 500)
+	}
+
+	body := C.janet_table_get(table, jkey("body"))
+	if C.janet_checktypes(body, C.JANET_TFLAG_BYTES) > 0 {
+		w.Write([]byte(ToString(body)))
+	} else {
+		log.Printf(":body key was not a string or buffer and will not be used")
+	}
+}
 
 func bindToEnv(env *C.JanetTable, key string, value C.Janet, doc string) {
 	table := C.janet_table(512)

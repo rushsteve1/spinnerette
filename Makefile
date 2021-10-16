@@ -8,8 +8,10 @@
 all: spinnerette
 submodule: deps/janet/README.md
 janet: deps/janet/build/c/janet.c
+run: spinnerette
+	./$^
 
-spinnerette: deps/janet/build/c/janet.c
+spinnerette: $(wildcard *.go) shim.c deps/janet/build/c/janet.c
 	go build
 
 deps/janet/build/c/janet.c: deps/janet/README.md
