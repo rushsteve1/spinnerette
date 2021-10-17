@@ -1,4 +1,4 @@
-package main
+package bindings
 
 // #include "janet.h"
 import "C"

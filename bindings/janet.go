@@ -1,15 +1,15 @@
-package main
+package bindings
 
 /*
 #cgo CFLAGS: -fPIC -O2
-#cgo CFLAGS: -I ${SRCDIR}/deps/janet/build
-#cgo LDFLAGS: -lm -ldl -lpthread ${SRCDIR}/deps/janet/build/libjanet.a
+#cgo CFLAGS: -I ${SRCDIR}/janet/build
+#cgo LDFLAGS: -lm -ldl -lpthread ${SRCDIR}/janet/build/libjanet.a ${SRCDIR}/libsqlite3.a
+
 #include "janet.h"
-Janet loader_shim(int32_t argc, Janet *argv);
-const JanetReg cfuns[] = {
-   {"spin/module-loader", loader_shim, "(spin/module-loader)\n\nLoads modules from Spinnerette"},
-   {NULL, NULL, NULL}
-};
+#include "./sqlite3/sqlite3.h"
+
+extern Janet loader_shim(int32_t argc, Janet *argv);
+extern const JanetReg shim_cfuns[];
 */
 import "C"
 import (
@@ -33,7 +33,7 @@ func CoreEnv() *C.JanetTable {
 
 func SpinEnv() *C.JanetTable {
 	env := CoreEnv()
-	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.cfuns)))
+	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.shim_cfuns)))
 	InitModules(env)
 	return env
 }

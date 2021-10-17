@@ -1,12 +1,15 @@
-[submodule "deps/janet"]
-	path = deps/janet
+[submodule "bindings/janet"]
+	path = bindings/janet
 	url = https://github.com/janet-lang/janet
-[submodule "deps/janet-html"]
-	path = deps/janet-html
+[submodule "libs/janet-html"]
+	path = libs/janet-html
 	url = https://github.com/swlkr/janet-html
-[submodule "deps/spork"]
-	path = deps/spork
+[submodule "libs/spork"]
+	path = libs/spork
 	url = https://github.com/janet-lang/spork
-[submodule "spork"]
-	path = spork
-	url = https://github.com/janet-lang/spork
+[submodule "bindings/json"]
+	path = bindings/json
+	url = https://github.com/janet-lang/json
+[submodule "bindings/sqlite3"]
+	path = bindings/sqlite3
+	url = https://github.com/janet-lang/sqlite3
