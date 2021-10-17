@@ -1,0 +1,22 @@
+<!-- Temple is also supported via the Spork library -->
+<!-- These templates can have Janet code mixed into them in a few ways-->
+
+<!-- This will be evaluated at compile-time -->
+{$ (import html) $}
+
+<html>
+    <body>
+      <!-- This will be evaluated and its return value escaped and put inline -->
+      <h1>{{ "Hello there!" }}</h1>
+
+      <!-- This will be evaluated and NOT escaped -->
+      <!-- You can mix janet-html into Temple! -->
+      {- (html/encode [:div [:p "Fun with templates"]]) -}
+
+      <!-- This will be evaluated but NOT added to the page -->
+      {% "I don't go anywhere" %}
+
+      <!-- Printing in Temple also adds to the page -->
+      {% (print "I get added anyway!") %}
+    </body>
+</html>
