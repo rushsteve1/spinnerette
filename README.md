@@ -22,7 +22,7 @@ With the binary built, run the following command:
 ./spinnerette
 ```
 
-Which will start a server on port 9999 then you may visit the examples lik the
+Which will start a server on port 9999 then you may visit the examples like the
 following:
 
 [http://localhost:9999/examples/hello.janet](http://localhost:9999/examples/hello.janet)
