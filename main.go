@@ -30,7 +30,9 @@ var embeddedLibs embed.FS
 
 var fileMappings = map[string]string{
 	"html":             "libs/janet-html/src/janet-html.janet",
-	"spin" : "libs/spin/init.janet",
+	"spin":             "libs/spin/init.janet",
+	"spin/response":    "libs/spin/response.janet",
+	"spork":            "libs/spork/spork/init.janet",
 	"spork/argparse":   "libs/spork/spork/argparse.janet",
 	"spork/ev-utils":   "libs/spork/spork/ev-utils.janet",
 	"spork/fmt":        "libs/spork/spork/fmt.janet",
@@ -46,7 +48,6 @@ var fileMappings = map[string]string{
 	"spork/temple":     "libs/spork/spork/temple.janet",
 	"spork/test":       "libs/spork/spork/test.janet",
 }
-
 
 func main() {
 	ParseFlags()
@@ -102,7 +103,6 @@ func ParseFlags() {
 
 	flag.Parse()
 }
-
 
 type Handler struct {
 	Addr string

@@ -6,10 +6,6 @@ package bindings
 #cgo LDFLAGS: -lm -ldl -lpthread ${SRCDIR}/janet/build/libjanet.a ${SRCDIR}/libsqlite3.a
 
 #include "janet.h"
-#include "./sqlite3/sqlite3.h"
-
-extern Janet loader_shim(int32_t argc, Janet *argv);
-extern const JanetReg shim_cfuns[];
 */
 import "C"
 import (
@@ -33,7 +29,6 @@ func CoreEnv() *C.JanetTable {
 
 func SpinEnv() *C.JanetTable {
 	env := CoreEnv()
-	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.shim_cfuns)))
 	InitModules(env)
 	return env
 }

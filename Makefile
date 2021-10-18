@@ -11,7 +11,7 @@ janet: bindings/janet/build/c/janet.c
 sqlite: bindings/libsqlite3.a
 
 
-spinnerette: $(wildcard **/*.go) bindings/shim.c bindings/janet/build/libjanet.a bindings/libsqlite3.a
+spinnerette: $(wildcard **/*.go) $(wildcard bindings/*.c) bindings/janet/build/libjanet.a bindings/libsqlite3.a
 	go build
 
 bindings/sqlite3.o: bindings/sqlite3/sqlite3.c
