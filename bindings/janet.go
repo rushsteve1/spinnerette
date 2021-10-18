@@ -90,12 +90,7 @@ func PrettyPrint(j C.Janet) string {
 }
 
 func bindToEnv(env *C.JanetTable, key string, value C.Janet, doc string) {
-	table := C.janet_table(512)
-	C.janet_table_put(table, jkey("doc"), jstr(doc))
-	C.janet_table_put(table, jkey("source-map"), jstr("janet.go"))
-	C.janet_table_put(table, jkey("value"), value)
-
-	C.janet_table_put(env, jsym(key), C.janet_wrap_table(table))
+	C.janet_def_sm(env, C.CString(key), value, C.CString(doc), C.CString("janet.go"), -1)
 }
 
 func getEnvValue(env *C.JanetTable, key string) C.Janet {

@@ -5,6 +5,7 @@ package bindings
 import "C"
 import (
 	"embed"
+	"strings"
 	"unsafe"
 )
 
@@ -15,28 +16,49 @@ import (
  */
 
 var embedded embed.FS
-var fileMappings map[string]string
+
+var fileMappings = map[string]string{
+	"html":             "libs/janet-html/src/janet-html.janet",
+	"spin":             "libs/spin/init.janet",
+	"spin/response":    "libs/spin/response.janet",
+	"spork":            "libs/spork/spork/init.janet",
+	"spork/argparse":   "libs/spork/spork/argparse.janet",
+	"spork/ev-utils":   "libs/spork/spork/ev-utils.janet",
+	"spork/fmt":        "libs/spork/spork/fmt.janet",
+	"spork/generators": "libs/spork/spork/generators.janet",
+	"spork/http":       "libs/spork/spork/http.janet",
+	"spork/init":       "libs/spork/spork/init.janet",
+	"spork/misc":       "libs/spork/spork/misc.janet",
+	"spork/msg":        "libs/spork/spork/msg.janet",
+	"spork/netrepl":    "libs/spork/spork/netrepl.janet",
+	"spork/path":       "libs/spork/spork/path.janet",
+	"spork/regex":      "libs/spork/spork/regex.janet",
+	"spork/rpc":        "libs/spork/spork/rpc.janet",
+	"spork/temple":     "libs/spork/spork/temple.janet",
+	"spork/test":       "libs/spork/spork/test.janet",
+}
+
 var nativeModules = []string{"json", "sqlite3"}
+var prefixes = []string{"spin", "spork"}
 
 // This is a workaround for how Go'd embed works
-func SetupEmbeds(e embed.FS, m map[string]string) {
+func SetupEmbeds(e embed.FS) {
 	embedded = e
-	fileMappings = m
 }
 
 //export ModuleLoader
-func ModuleLoader(path *C.char, protoEnv *C.JanetTable) *C.JanetTable {
-	name := C.GoString(path)
+func ModuleLoader(p *C.char, protoEnv *C.JanetTable) *C.JanetTable {
+	path := C.GoString(p)
 	env := C.janet_table(1024)
 	env.proto = protoEnv
 
-	switch name {
+	switch path {
 	case "json":
-		C.janet_cfuns(env, path, (*C.JanetReg)(unsafe.Pointer(C.json_ns.cfuns)))
+		C.janet_cfuns(env, C.CString("json"), (*C.JanetReg)(unsafe.Pointer(C.json_ns.cfuns)))
 	case "sqlite3":
-		C.janet_cfuns(env, path, (*C.JanetReg)(unsafe.Pointer(C.sqlite3_ns.cfuns)))
+		C.janet_cfuns(env, C.CString("sqlite3"), (*C.JanetReg)(unsafe.Pointer(C.sqlite3_ns.cfuns)))
 	default:
-		if val, ok := fileMappings[name]; ok {
+		if val, ok := fileMappings[path]; ok {
 			code, _ := embedded.ReadFile(val)
 			EvalBytes(code, env)
 		}
@@ -48,16 +70,30 @@ func ModuleLoader(path *C.char, protoEnv *C.JanetTable) *C.JanetTable {
 // TODO handle relative paths in bundled modules
 
 //export PathPred
-func PathPred(path C.Janet) C.Janet {
-	p := C.GoString((*C.char)(unsafe.Pointer(C.janet_unwrap_string(path))))
+func PathPred(j C.Janet) C.Janet {
+	path := C.GoString((*C.char)(unsafe.Pointer(C.janet_unwrap_string(j))))
+
 	for _, s := range nativeModules {
-		if s == p {
-			return path
+		if s == path {
+			return j
 		}
 	}
 	for s, _ := range fileMappings {
-		if s == p {
-			return path
+		if s == path {
+			return j
+		}
+	}
+
+	// TODO this currently allows for user scripts to access bundled libraries
+	// with relative paths when it probably shouldn't
+
+	// Tries to load relative imports to fix init.janet files
+	if strings.HasPrefix(path, "./") {
+		for _, prefix := range prefixes {
+			s := strings.Replace(path, ".", prefix, 1)
+			if _, ok := fileMappings[s]; ok {
+				return jstr(s)
+			}
 		}
 	}
 

@@ -28,32 +28,11 @@ var parsedFlags Flags
 //go:embed libs/janet-html/src/janet-html.janet libs/spork/spork/*.janet libs/spin/*.janet
 var embeddedLibs embed.FS
 
-var fileMappings = map[string]string{
-	"html":             "libs/janet-html/src/janet-html.janet",
-	"spin":             "libs/spin/init.janet",
-	"spin/response":    "libs/spin/response.janet",
-	"spork":            "libs/spork/spork/init.janet",
-	"spork/argparse":   "libs/spork/spork/argparse.janet",
-	"spork/ev-utils":   "libs/spork/spork/ev-utils.janet",
-	"spork/fmt":        "libs/spork/spork/fmt.janet",
-	"spork/generators": "libs/spork/spork/generators.janet",
-	"spork/http":       "libs/spork/spork/http.janet",
-	"spork/init":       "libs/spork/spork/init.janet",
-	"spork/misc":       "libs/spork/spork/misc.janet",
-	"spork/msg":        "libs/spork/spork/msg.janet",
-	"spork/netrepl":    "libs/spork/spork/netrepl.janet",
-	"spork/path":       "libs/spork/spork/path.janet",
-	"spork/regex":      "libs/spork/spork/regex.janet",
-	"spork/rpc":        "libs/spork/spork/rpc.janet",
-	"spork/temple":     "libs/spork/spork/temple.janet",
-	"spork/test":       "libs/spork/spork/test.janet",
-}
-
 func main() {
 	ParseFlags()
 	parsedFlags.Method = strings.ToLower(parsedFlags.Method)
 
-	janet.SetupEmbeds(embeddedLibs, fileMappings)
+	janet.SetupEmbeds(embeddedLibs)
 
 	handler := Handler{
 		Addr: fmt.Sprintf("0.0.0.0:%d", parsedFlags.Port),
@@ -109,7 +88,7 @@ type Handler struct {
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := filepath.Join(parsedFlags.Root, r.URL.Path)
+	path := filepath.Join(parsedFlags.Root, filepath.Clean(r.URL.Path))
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		http.NotFound(w, r)
