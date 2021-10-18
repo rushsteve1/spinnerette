@@ -4,6 +4,15 @@
 # @file
 # @version 0.1
 
+# TODO get Janet to use release flags
+CFLAGS=-std=c99 -Wall -Wextra -fPIC -O2
+
+GOFILES=$(wildcard **/*.go)
+CFILES=$(wildcard bindings/*.c)
+JANETFILES=$(wildcard libs/spin/*.janet)
+NATIVEFILES=bindings/janet/build/libjanet.a bindings/libsqlite3.a
+ALLFILES=$(GOFILES) $(JANETFILES) $(CFILES) $(NATIVEFILES)
+
 # Named rule aliases
 all: spinnerette
 submodules: bindings/janet/README.md
@@ -11,14 +20,17 @@ janet: bindings/janet/build/c/janet.c
 sqlite: bindings/libsqlite3.a
 
 
-spinnerette: $(wildcard **/*.go) $(wildcard bindings/*.c) bindings/janet/build/libjanet.a bindings/libsqlite3.a
-	go build
+spinnerette: $(ALLFILES)
+	go build -v
+
+test: $(ALLFILES)
+	go test -v
 
 bindings/sqlite3.o: bindings/sqlite3/sqlite3.c
-	$(CC) -fPIC -O2 -c $^ -o $@
+	$(CC) $(CFLAGS) -c $^ -o $@
 
 bindings/libsqlite3.a: bindings/sqlite3.o
-	ar rcs $@ $^
+	$(AR) rcs $@ $^
 
 bindings/janet/build/libjanet.a: bindings/janet/README.md
 	$(MAKE) -C bindings/janet
@@ -31,11 +43,14 @@ bindings/janet/README.md:
 
 .PHONY: clean clean-janet run
 
-clean: clean-janet
-	rm -f spinnerette bindings/sqlite3.o bindings/libsqlite3.a
+clean: clean-janet clean-sqlite
+	$(RM) -f spinnerette
 
 clean-janet:
 	$(MAKE) -C bindings/janet clean
+
+clean-sqlite:
+	$(RM) -f bindings/sqlite3.o bindings/libsqlite3.a
 
 run: spinnerette
 	./$<
