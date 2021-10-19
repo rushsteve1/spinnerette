@@ -1,3 +1,5 @@
+![Spinnerette: Quickly spin websites with Janet](./docs/img/spinerette-logo-gh.svg)
+
 # Spinnerette
 
 Simple Janet web development platform in Go, à la PHP
@@ -40,16 +42,16 @@ make run
 The `spinnerette` binary accepts the following arguments:
 
 - `--method string`
-The method that Spinnerette will listen on (HTTP, FastCGI, or CGI) (default "http")
+  The method that Spinnerette will listen on (HTTP, FastCGI, or CGI) (default "http")
 
 - `--port int`
-Port to use for HTTP/FastCGI (default 9999)
+  Port to use for HTTP/FastCGI (default 9999)
 
 - `--root string`
-Webroot files will be found in (default your current working directory)
+  Webroot files will be found in (default your current working directory)
 
 - `--socket string`
-Socket to use for FastCGI (falls back to TCP with --port)
+  Socket to use for FastCGI (falls back to TCP with --port)
 
 ### Example
 
