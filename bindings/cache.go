@@ -34,6 +34,10 @@ func CacheGet(k *C.char) C.Janet {
 //export CacheSet
 func CacheSet(k *C.char, value C.Janet) C.Janet {
 	key := C.GoString(k)
+	if v, ok := SpinCache[key]; ok {
+		C.janet_gcunroot(v.Value)
+	}
+	C.janet_gcroot(value)
 	SpinCache[key] = CacheValue{Value: value, At: float64(time.Now().Unix())}
 	return value
 }
