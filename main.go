@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"net/http/cgi"
@@ -33,6 +34,8 @@ func main() {
 	parsedFlags.Method = strings.ToLower(parsedFlags.Method)
 
 	janet.SetupEmbeds(embeddedLibs)
+	mime.AddExtensionType(".janet", "text/janet")
+	mime.AddExtensionType(".temple", "text/temple")
 
 	handler := Handler{
 		Addr: fmt.Sprintf("0.0.0.0:%d", parsedFlags.Port),
@@ -95,10 +98,11 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch filepath.Ext(path) {
-	case ".janet":
+	m := mime.TypeByExtension(filepath.Ext(path))
+	switch m {
+	case "text/janet; charset=utf-8":
 		h.janetHandler(w, r, path)
-	case ".temple":
+	case "text/temple; charset=utf-8":
 		h.templeHandler(w, r, path)
 	default:
 		http.ServeFile(w, r, path)
