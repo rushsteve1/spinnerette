@@ -18,7 +18,7 @@ func RequestEnv(r *http.Request) (*C.JanetTable, error) {
 		return env, err
 	}
 
-	bindToEnv(env, "spin/request", req, "HTTP request recieved by Spinnerette")
+	bindToEnv(env, "*request*", req, "HTTP request recieved by Spinnerette")
 	return env, nil
 }
 

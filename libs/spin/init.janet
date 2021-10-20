@@ -1,3 +1,5 @@
+(import ./cache :export true)
+
 (import json :as js)
 
 (defn json
@@ -13,21 +15,3 @@
   {:headers {"Content-Type" "application/json"}
    :status (or status 200)
    :body (js/encode content)})
-
-(defmacro cache-timeout
-  "
-  (spin/cache-timeout key timeout & body)
-
-  Evaluates the given body and stores it in the Spinnerette cache
-  with the given `key` (a keyword).
-  Subsequent calls will use the cached version.
-  Once the `timeout` (integer seconds) has passed the body will be re-run the
-  body and cached again.
-  "
-  [key timeout & body]
-  (with-syms [$val $time]
-    ~(let [[,$val ,$time] (spin/cache-get ,key)]
-      # If there is nothing in the cache, or the timeout has passed
-      (if (or (nil? ,$val) (> (- (os/time) ,$time) ,timeout))
-        (spin/cache-set ,key (do ,;body))
-        ,$val))))

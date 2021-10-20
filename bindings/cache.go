@@ -34,6 +34,8 @@ func CacheGet(k *C.char) C.Janet {
 //export CacheSet
 func CacheSet(k *C.char, value C.Janet) C.Janet {
 	key := C.GoString(k)
+	// TODO since these values have to live across multiple invocations of the
+	// janet runtime, things might get tricky
 	if v, ok := SpinCache[key]; ok {
 		C.janet_gcunroot(v.Value)
 	}

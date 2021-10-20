@@ -85,7 +85,7 @@ func ToString(janet C.Janet) string {
 }
 
 func PrettyPrint(j C.Janet) string {
-	buf := C.janet_pretty((*C.JanetBuffer)(C.NULL), 5, C.JANET_PRETTY_NOTRUNC, j)
+	buf := C.janet_pretty((*C.JanetBuffer)(C.NULL), -1, C.JANET_PRETTY_NOTRUNC, j)
 	return C.GoStringN((*C.char)(unsafe.Pointer(buf.data)), buf.count)
 }
 

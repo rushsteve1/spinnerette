@@ -39,17 +39,20 @@ Janet cache_set_shim(int32_t argc, Janet *argv) {
 }
 
 const JanetReg shim_cfuns[] = {
-   {"spin/module-loader", loader_shim,
+   {"spinternal/module-loader", loader_shim,
        "(spin/module-loader x &args)\n\nLoader for embedded Spinnerette modules."
    },
-   {"spin/path-pred", path_pred_shim,
-       "(spin/path-pred x)\n\nPredicate that verifies built-in paths."},
-   {"spin/cache-get", cache_get_shim,
-       "(spin/cache-get key)\n\nGets a value from the Spinnerette cache."
+   {"spinternal/path-pred", path_pred_shim,
+       "(spinternal/path-pred x)\n\nPredicate that verifies and expands import"
+       "paths for bundled libraries."},
+   {"spinternal/raw-cache-get", cache_get_shim,
+       "Internal API. Use spin/cache instead."
+       "(spinternal/cache-get key)\n\nGets a value from the Spinnerette cache."
        "Returns a tuple of the value and the UNIX time that it was cached."
        "If the key was not in the cache returns (nil -1)"},
-   {"spin/cache-set", cache_set_shim,
-       "(spin/cache-set key value)\n\nSets a value in the Spinnerette cache."
+   {"spinternal/raw-cache-set", cache_set_shim,
+       "Internal API. Use spin/cache instead."
+       "(spinternal/cache-set key value)\n\nSets a value in the Spinnerette cache."
        "Returns the given `value`."},
    {"pretty", pretty,
        "(pretty x)\n\nReturns the non-truncated pretty string."

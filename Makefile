@@ -21,13 +21,14 @@ sqlite: bindings/libsqlite3.a
 
 
 spinnerette: $(ALLFILES)
+	go build -v ./...
 	go build -v
 
 test: $(ALLFILES)
-	go test -v
+	go test -v ./...
 
 bindings/sqlite3.o: bindings/sqlite3/sqlite3.c
-	$(CC) $(CFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) -DSQLITE_ENABLE_JSON1 -c $^ -o $@
 
 bindings/libsqlite3.a: bindings/sqlite3.o
 	$(AR) rcs $@ $^

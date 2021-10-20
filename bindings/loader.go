@@ -20,6 +20,7 @@ var embedded embed.FS
 var fileMappings = map[string]string{
 	"html":             "libs/janet-html/src/janet-html.janet",
 	"spin":             "libs/spin/init.janet",
+	"spin/cache":       "libs/spin/cache.janet",
 	"spin/response":    "libs/spin/response.janet",
 	"spork":            "libs/spork/spork/init.janet",
 	"spork/argparse":   "libs/spork/spork/argparse.janet",
@@ -104,7 +105,7 @@ func InitModules(env *C.JanetTable) {
 	// Load the shim functions
 	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.shim_cfuns)))
 
-	pred, _ := EvalString("(fn [path] (spin/path-pred path))", env)
+	pred, _ := EvalString("(fn [path] (spinternal/path-pred path))", env)
 	tuple := []C.Janet{pred, jkey("spinnerette")}
 
 	paths := getEnvValue(env, "module/paths")
