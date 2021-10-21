@@ -12,6 +12,7 @@ import (
 	"net/http/fcgi"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	janet "github.com/rushsteve1/spinnerette/bindings"
@@ -30,10 +31,17 @@ var parsedFlags Flags
 var embeddedLibs embed.FS
 
 func main() {
+	runtime.GOMAXPROCS(1)
+
 	ParseFlags()
 	parsedFlags.Method = strings.ToLower(parsedFlags.Method)
 
+	// Setup the Janet interpreter
 	janet.SetupEmbeds(embeddedLibs)
+	janet.StartJanet()
+	defer janet.StopJanet()
+
+	// Add mimetypes to database
 	mime.AddExtensionType(".janet", "text/janet")
 	mime.AddExtensionType(".temple", "text/temple")
 
@@ -42,7 +50,7 @@ func main() {
 	}
 
 	if parsedFlags.Method == "http" {
-		log.Printf("Starting HTTP server on port %d", parsedFlags.Port)
+		log.Printf("Starting HTTP server at http://%s", handler.Addr)
 		http.ListenAndServe(handler.Addr, handler)
 	} else if parsedFlags.Method == "fastcgi" || parsedFlags.Method == "fcgi" {
 		var listen net.Listener
@@ -110,43 +118,27 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) janetHandler(w http.ResponseWriter, r *http.Request, path string) {
-	janet.Init()
-	defer janet.DeInit()
-
-	env, err := janet.RequestEnv(r)
-	if err != nil {
-		http.Error(w, "Could not build request env", 500)
-		log.Println(err)
-		return
-	}
-
-	j, err := janet.EvalFilePath(path, env)
+	j, err := janet.EvalFilePath(path, r)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		log.Println(err.Error())
 		return
 	}
 
-	janet.WriteResponse(j, w)
+	if j != nil {
+		janet.WriteResponse(*j, w)
+	}
 }
 
 func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path string) {
-	janet.Init()
-	defer janet.DeInit()
-
-	env, err := janet.RequestEnv(r)
-	if err != nil {
-		http.Error(w, "Could not build request env", 500)
-		log.Println(err)
-		return
-	}
-
-	j, err := janet.RenderTemple(path, env)
+	j, err := janet.RenderTemple(path, r)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		log.Println(err.Error())
 		return
 	}
 
-	janet.WriteResponse(j, w)
+	if j != nil {
+		janet.WriteResponse(*j, w)
+	}
 }

@@ -8,19 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
-
-func RequestEnv(r *http.Request) (*C.JanetTable, error) {
-	env := SpinEnv()
-
-	req, err := RequestToJanet(r)
-	if err != nil {
-		return env, err
-	}
-
-	bindToEnv(env, "*request*", req, "HTTP request recieved by Spinnerette")
-	return env, nil
-}
 
 func WriteResponse(j C.Janet, w http.ResponseWriter) {
 	switch C.janet_type(j) {
@@ -60,7 +49,7 @@ func RequestToJanet(r *http.Request) (C.Janet, error) {
 	C.janet_table_put(table, jkey("query-string"), jstr(r.URL.RawQuery))
 
 	headers := C.janet_table(512)
-	for k, _ := range r.Header {
+	for k := range r.Header {
 		C.janet_table_put(headers, jstr(k), jstr(r.Header.Get(k)))
 	}
 	C.janet_table_put(table, jkey("headers"), C.janet_wrap_table(headers))
@@ -77,7 +66,7 @@ func ResponseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
 	}
 	if C.janet_checktype(headers, C.JANET_TABLE) > 0 {
 		h := C.janet_unwrap_table(headers)
-		kv := &*h.data
+		kv := h.data
 		for kv != (*C.JanetKV)(C.NULL) {
 			k := ToString(kv.key)
 			v := ToString(kv.value)
@@ -103,17 +92,19 @@ func ResponseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
 	}
 }
 
-func RenderTemple(path string, env *C.JanetTable) (C.Janet, error) {
+func RenderTemple(path string, req *http.Request) (*C.Janet, error) {
 	code, err := os.ReadFile(path)
 	if err != nil {
-		return C.janet_wrap_nil(), err
+		return nil, err
 	}
 
-	// TODO escape the strings better and clean this up
-	fn := fmt.Sprintf("(import spork/temple :as temple) (let [out @\"\"] (with-dyns [:out out] ((temple/create `%s` `%s`) {})) out)", code, path)
-	out, err := EvalString(fn, env)
+	escapedCode := strings.ReplaceAll(string(code), "\"", "\\\"")
+	path = strings.ReplaceAll(path, "\"", "\\\"")
+
+	fn := fmt.Sprintf("(import spork/temple :as temple) (let [out @\"\"] (with-dyns [:out out] ((temple/create \"%s\" \"%s\") {})) out)", escapedCode, path)
+	out, err := EvalBytes([]byte(fn), path, req)
 	if err != nil {
-		return C.janet_wrap_nil(), err
+		return nil, err
 	}
 	return out, nil
 }

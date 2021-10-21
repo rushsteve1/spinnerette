@@ -1,83 +1,125 @@
 package bindings
 
-/*
-#cgo CFLAGS: -fPIC -O2
-#cgo CFLAGS: -I ${SRCDIR}/janet/build
-#cgo LDFLAGS: -lm -ldl -lpthread ${SRCDIR}/janet/build/libjanet.a ${SRCDIR}/libsqlite3.a
 
-#include "janet.h"
-*/
+// #cgo CFLAGS: -fPIC -O2
+// #cgo CFLAGS: -I ${SRCDIR}/janet/build
+// #cgo LDFLAGS: ${SRCDIR}/janet/build/libjanet.a ${SRCDIR}/libsqlite3.a -L. -lm -ldl -lpthread
+// #include "janet.h"
 import "C"
 import (
-	"errors"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"unsafe"
 )
 
-func Init() {
+type message struct {
+	Code   []byte
+	Source string
+	Req    *http.Request
+}
+
+var sendChan chan message
+var recvChan chan C.Janet
+var errChan chan error
+
+func StartJanet() {
+	sendChan = make(chan message)
+	recvChan = make(chan C.Janet)
+	errChan = make(chan error)
+	go janetRoutine()
+	
+	// Block now to ensure everything is started
+	sendChan <- message { Code: []byte{}, Source: "", Req: nil }
+}
+
+func StopJanet() {
+	log.Printf("Stopping Janet interpreter routine")
+	close(sendChan)
+}
+
+func janetRoutine() {
+	defer close(recvChan)
+
 	C.janet_init()
+	defer C.janet_deinit()
+
+	topEnv := C.janet_core_env((*C.JanetTable)(C.NULL))
+	initModules(topEnv)
+
+	for msg := range sendChan {
+		// Ignore messages with no code 
+		if len(msg.Code) == 0 {
+			continue
+		}
+
+		env := C.janet_table(0)
+		env.proto = topEnv
+
+		if msg.Req != nil {
+			req, err := RequestToJanet(msg.Req)
+			if err != nil {
+				errChan <- err
+				continue
+			}
+
+			bindToEnv(env, "*request*", req, "Circlet-style HTTP request recieved by Spinnerette.")
+		}
+
+		var out C.Janet
+		errno := C.janet_dobytes(
+			env,
+			(*C.uchar)(unsafe.Pointer(&msg.Code[0])),
+			C.int(len(msg.Code)),
+			C.CString(msg.Source),
+			&out,
+		)
+	
+		if errno != 0 {
+			errChan <- fmt.Errorf("Janet error. number: %d", errno)
+		} else {
+			recvChan <- out
+		}
+	}
+
+	// In theory this should never happen
+	// But those are famous last words, so log it if it does happen
+	log.Fatal("Janet Message Loop Ended")
 }
 
-func DeInit() {
-	C.janet_deinit()
-}
-
-func CoreEnv() *C.JanetTable {
-	return C.janet_core_env((*C.JanetTable)(C.NULL))
-}
-
-func SpinEnv() *C.JanetTable {
-	env := CoreEnv()
-	InitModules(env)
-	return env
-}
-
-func EvalFilePath(path string, env *C.JanetTable) (C.Janet, error) {
+func EvalFilePath(path string, req *http.Request) (*C.Janet, error) {
 	code, err := os.ReadFile(path)
 	if err != nil {
-		return C.janet_wrap_nil(), err
+		return nil, err
 	}
 
-	if len(code) == 0 {
-		return C.janet_wrap_nil(), errors.New("File is empty")
-	}
-
-	var out C.Janet
-	errno := C.janet_dobytes(env, (*C.uchar)(unsafe.Pointer(&code[0])), C.int(len(code)), C.CString(path), &out)
-	if errno != 0 {
-		return C.janet_wrap_nil(), errors.New(fmt.Sprintf("Janet error: %d", errno))
-	}
-
-	return out, nil
-}
-
-func EvalBytes(code []byte, env *C.JanetTable) (C.Janet, error) {
-	if len(code) == 0 {
-		return C.janet_wrap_nil(), errors.New("Code is empty")
-	}
-
-	var out C.Janet
-	errno := C.janet_dobytes(env, (*C.uchar)(unsafe.Pointer(&code[0])), C.int(len(code)), C.CString("spinnerette internal"), &out)
-	if errno != 0 {
-		return C.janet_wrap_nil(), errors.New(fmt.Sprintf("Janet error: %d", errno))
-	}
-
-	return out, nil
-}
-
-func EvalString(code string, env *C.JanetTable) (C.Janet, error) {
-	return EvalBytes([]byte(code), env)
-}
-
-func EvalBind(env *C.JanetTable, key string, code string, doc string) error {
-	j, err := EvalString(code, env)
+	out, err := EvalBytes(code, path, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	bindToEnv(env, key, j, doc)
-	return nil
+	return out, nil
+}
+
+func EvalBytes(code []byte, source string, req *http.Request) (*C.Janet, error) {
+	msg := message{
+		Code:   code,
+		Source: source,
+		Req:    req,
+	}
+
+	sendChan <- msg
+	select {
+	case out := <-recvChan:
+		return &out, nil
+	case err := <-errChan:
+		return nil, err
+	}
+}
+
+func EvalString(code string) (*C.Janet, error) {
+	return EvalBytes([]byte(code), "Spinnerette Internal", nil)
 }
 
 func ToString(janet C.Janet) string {

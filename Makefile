@@ -21,7 +21,6 @@ sqlite: bindings/libsqlite3.a
 
 
 spinnerette: $(ALLFILES)
-	go build -v ./...
 	go build -v
 
 test: $(ALLFILES)

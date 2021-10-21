@@ -47,8 +47,8 @@ func SetupEmbeds(e embed.FS) {
 	embedded = e
 }
 
-//export ModuleLoader
-func ModuleLoader(p *C.char, protoEnv *C.JanetTable) *C.JanetTable {
+//export moduleLoader
+func moduleLoader(p *C.char, protoEnv *C.JanetTable) *C.JanetTable {
 	path := C.GoString(p)
 	env := C.janet_table(1024)
 	env.proto = protoEnv
@@ -61,7 +61,7 @@ func ModuleLoader(p *C.char, protoEnv *C.JanetTable) *C.JanetTable {
 	default:
 		if val, ok := fileMappings[path]; ok {
 			code, _ := embedded.ReadFile(val)
-			EvalBytes(code, env)
+			EvalBytes(code, val, nil)
 		}
 	}
 
@@ -70,8 +70,8 @@ func ModuleLoader(p *C.char, protoEnv *C.JanetTable) *C.JanetTable {
 
 // TODO handle relative paths in bundled modules
 
-//export PathPred
-func PathPred(j C.Janet) C.Janet {
+//export pathPred
+func pathPred(j C.Janet) C.Janet {
 	path := C.GoString((*C.char)(unsafe.Pointer(C.janet_unwrap_string(j))))
 
 	for _, s := range nativeModules {
@@ -79,7 +79,7 @@ func PathPred(j C.Janet) C.Janet {
 			return j
 		}
 	}
-	for s, _ := range fileMappings {
+	for s := range fileMappings {
 		if s == path {
 			return j
 		}
@@ -101,11 +101,13 @@ func PathPred(j C.Janet) C.Janet {
 	return C.janet_wrap_nil()
 }
 
-func InitModules(env *C.JanetTable) {
+func initModules(env *C.JanetTable) {
 	// Load the shim functions
-	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.shim_cfuns)))
+	C.janet_cfuns(env, C.CString("spinternal"), (*C.JanetReg)(unsafe.Pointer(&C.spin_cfuns)))
 
-	pred, _ := EvalString("(fn [path] (spinternal/path-pred path))", env)
+	bindToEnv(env, "*cache*", C.janet_wrap_table(C.janet_table(0)), "Internal cache table. Use `spin/cache` instead.")
+
+	pred := getEnvValue(env, "spinternal/path-pred")
 	tuple := []C.Janet{pred, jkey("spinnerette")}
 
 	paths := getEnvValue(env, "module/paths")
