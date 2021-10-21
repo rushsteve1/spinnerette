@@ -32,7 +32,7 @@ func RequestToJanet(r *http.Request) (C.Janet, error) {
 	body, err := io.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		return C.janet_wrap_nil(), err
+		return jnil(), err
 	}
 
 	table := C.janet_table(C.int(1024 + len(body)))
@@ -40,7 +40,7 @@ func RequestToJanet(r *http.Request) (C.Janet, error) {
 	if len(body) > 0 {
 		C.janet_table_put(table, jkey("body"), jbuf(body))
 	} else {
-		C.janet_table_put(table, jkey("body"), C.janet_wrap_nil())
+		C.janet_table_put(table, jkey("body"), jnil())
 	}
 
 	C.janet_table_put(table, jkey("uri"), jstr(r.URL.String()))
@@ -92,10 +92,10 @@ func ResponseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
 	}
 }
 
-func RenderTemple(path string, req *http.Request) (*C.Janet, error) {
+func RenderTemple(path string, req *http.Request) (C.Janet, error) {
 	code, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return jnil(), err
 	}
 
 	escapedCode := strings.ReplaceAll(string(code), "\"", "\\\"")
@@ -104,7 +104,7 @@ func RenderTemple(path string, req *http.Request) (*C.Janet, error) {
 	fn := fmt.Sprintf("(import spork/temple :as temple) (let [out @\"\"] (with-dyns [:out out] ((temple/create \"%s\" \"%s\") {})) out)", escapedCode, path)
 	out, err := EvalBytes([]byte(fn), path, req)
 	if err != nil {
-		return nil, err
+		return jnil(), err
 	}
 	return out, nil
 }
