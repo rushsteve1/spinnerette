@@ -25,14 +25,17 @@ Janet path_pred_shim(int32_t argc, Janet *argv) {
   return pathPred(argv[0]);
 }
 
+// Put together the functions for Janet to load
+// When they're loaded the prefix doesn't seem to keep
+// so they have to be added here
 const JanetReg spin_cfuns[] = {
-   {"module-loader", loader_shim,
+   {"spinternal/module-loader", loader_shim,
        "(spin/module-loader x &args)\n\nLoader for embedded Spinnerette modules."
    },
-   {"path-pred", path_pred_shim,
+   {"spinternal/path-pred", path_pred_shim,
        "(spinternal/path-pred x)\n\nPredicate that verifies and expands import"
        "paths for bundled libraries."},
-   {"deep-pretty", pretty,
+   {"spinternal/deep-pretty", pretty,
        "(pretty x)\n\nReturns the non-truncated pretty string going as deep as it can."
    },
    {NULL, NULL, NULL}

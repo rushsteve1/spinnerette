@@ -98,16 +98,19 @@ func pathPred(j C.Janet) C.Janet {
 		}
 	}
 
-	return C.janet_wrap_nil()
+	return jnil()
 }
 
-func initModules(env *C.JanetTable) {
+func initModules() *C.JanetTable {
+	env := C.janet_core_env((*C.JanetTable)(C.NULL))
 	// Load the shim functions
-	C.janet_cfuns(env, C.CString("spinternal"), (*C.JanetReg)(unsafe.Pointer(&C.spin_cfuns)))
+	// When loading them link this there will be no prefix
+	// So the prefix is adde in spin_cfuns
+	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.spin_cfuns)))
 
 	bindToEnv(env, "*cache*", C.janet_wrap_table(C.janet_table(0)), "Internal cache table. Use `spin/cache` instead.")
 
-	pred := getEnvValue(env, "spinternal/path-pred")
+	pred, _ := innerEval(env, []byte("(fn [path] (spinternal/path-pred path))"), "Spinnerette Internal (path-pred loader)")
 	tuple := []C.Janet{pred, jkey("spinnerette")}
 
 	paths := getEnvValue(env, "module/paths")
@@ -117,4 +120,6 @@ func initModules(env *C.JanetTable) {
 	C.janet_checktype(paths, C.JANET_TABLE)
 	fn := C.janet_wrap_cfunction(C.JanetCFunction(C.loader_shim))
 	C.janet_table_put(C.janet_unwrap_table(loaders), jkey("spinnerette"), fn)
+
+	return env
 }

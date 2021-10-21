@@ -12,7 +12,6 @@ import (
 	"net/http/fcgi"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	janet "github.com/rushsteve1/spinnerette/bindings"
@@ -31,8 +30,6 @@ var parsedFlags Flags
 var embeddedLibs embed.FS
 
 func main() {
-	runtime.GOMAXPROCS(1)
-
 	ParseFlags()
 	parsedFlags.Method = strings.ToLower(parsedFlags.Method)
 
@@ -44,6 +41,7 @@ func main() {
 	// Add mimetypes to database
 	mime.AddExtensionType(".janet", "text/janet")
 	mime.AddExtensionType(".temple", "text/temple")
+	mime.AddExtensionType(".mdz", "text/temple")
 
 	handler := Handler{
 		Addr: fmt.Sprintf("0.0.0.0:%d", parsedFlags.Port),
@@ -125,9 +123,7 @@ func (h Handler) janetHandler(w http.ResponseWriter, r *http.Request, path strin
 		return
 	}
 
-	if j != nil {
-		janet.WriteResponse(*j, w)
-	}
+	janet.WriteResponse(j, w)
 }
 
 func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path string) {
@@ -138,7 +134,5 @@ func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path stri
 		return
 	}
 
-	if j != nil {
-		janet.WriteResponse(*j, w)
-	}
+	janet.WriteResponse(j, w)
 }

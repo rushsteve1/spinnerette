@@ -1,6 +1,5 @@
 package bindings
 
-
 // #cgo CFLAGS: -fPIC -O2
 // #cgo CFLAGS: -I ${SRCDIR}/janet/build
 // #cgo LDFLAGS: ${SRCDIR}/janet/build/libjanet.a ${SRCDIR}/libsqlite3.a -L. -lm -ldl -lpthread
@@ -11,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"unsafe"
 )
 
@@ -29,9 +29,6 @@ func StartJanet() {
 	recvChan = make(chan C.Janet)
 	errChan = make(chan error)
 	go janetRoutine()
-	
-	// Block now to ensure everything is started
-	sendChan <- message { Code: []byte{}, Source: "", Req: nil }
 }
 
 func StopJanet() {
@@ -42,14 +39,23 @@ func StopJanet() {
 func janetRoutine() {
 	defer close(recvChan)
 
+	// The Janet interpreter is not thread-safe
+	// So we give it it's own entire thread
+	// However this means we need at least 2 threads
+	c := runtime.NumCPU()
+	if c < 2 {
+		c = 2
+	}
+	runtime.GOMAXPROCS(c)
+	runtime.LockOSThread()
+
 	C.janet_init()
 	defer C.janet_deinit()
 
-	topEnv := C.janet_core_env((*C.JanetTable)(C.NULL))
-	initModules(topEnv)
+	topEnv := initModules()
 
 	for msg := range sendChan {
-		// Ignore messages with no code 
+		// Ignore messages with no code
 		if len(msg.Code) == 0 {
 			continue
 		}
@@ -67,42 +73,49 @@ func janetRoutine() {
 			bindToEnv(env, "*request*", req, "Circlet-style HTTP request recieved by Spinnerette.")
 		}
 
-		var out C.Janet
-		errno := C.janet_dobytes(
-			env,
-			(*C.uchar)(unsafe.Pointer(&msg.Code[0])),
-			C.int(len(msg.Code)),
-			C.CString(msg.Source),
-			&out,
-		)
-	
-		if errno != 0 {
-			errChan <- fmt.Errorf("Janet error. number: %d", errno)
+		out, err := innerEval(env, msg.Code, msg.Source)
+
+		if err != nil {
+			errChan <- err
 		} else {
 			recvChan <- out
 		}
+		
 	}
-
-	// In theory this should never happen
-	// But those are famous last words, so log it if it does happen
-	log.Fatal("Janet Message Loop Ended")
 }
 
-func EvalFilePath(path string, req *http.Request) (*C.Janet, error) {
+func innerEval(env *C.JanetTable, code []byte, source string) (C.Janet, error) {
+	// TODO this locks up on the second evaluation
+	var out C.Janet
+	errno := C.janet_dobytes(
+		env,
+		(*C.uchar)(unsafe.Pointer(&code[0])),
+		C.int(len(code)),
+		C.CString(source),
+		&out,
+	)
+
+	if errno != 0 {
+		return jnil(), fmt.Errorf("janet error number: %d", errno)
+	} 
+	return out, nil
+}
+
+func EvalFilePath(path string, req *http.Request) (C.Janet, error) {
 	code, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return jnil(), err
 	}
 
 	out, err := EvalBytes(code, path, req)
 	if err != nil {
-		return nil, err
+		return jnil(), err
 	}
 
 	return out, nil
 }
 
-func EvalBytes(code []byte, source string, req *http.Request) (*C.Janet, error) {
+func EvalBytes(code []byte, source string, req *http.Request) (C.Janet, error) {
 	msg := message{
 		Code:   code,
 		Source: source,
@@ -112,13 +125,13 @@ func EvalBytes(code []byte, source string, req *http.Request) (*C.Janet, error) 
 	sendChan <- msg
 	select {
 	case out := <-recvChan:
-		return &out, nil
+		return out, nil
 	case err := <-errChan:
-		return nil, err
+		return jnil(), err
 	}
 }
 
-func EvalString(code string) (*C.Janet, error) {
+func EvalString(code string) (C.Janet, error) {
 	return EvalBytes([]byte(code), "Spinnerette Internal", nil)
 }
 
@@ -162,4 +175,8 @@ func jkey(s string) C.Janet {
 	cstr := (*C.uchar)(unsafe.Pointer(C.CString(s)))
 	key := C.janet_keyword(cstr, C.int(len(s)))
 	return C.janet_wrap_keyword(key)
+}
+
+func jnil() C.Janet {
+	return C.janet_wrap_nil()
 }
