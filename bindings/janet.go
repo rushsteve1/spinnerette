@@ -85,7 +85,7 @@ func janetRoutine() {
 }
 
 func innerEval(env *C.JanetTable, code []byte, source string) (C.Janet, error) {
-	// TODO this locks up on the second evaluation
+	// TODO this locks up on the second evaluation when the code is different
 	var out C.Janet
 	errno := C.janet_dobytes(
 		env,

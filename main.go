@@ -39,9 +39,9 @@ func main() {
 	defer janet.StopJanet()
 
 	// Add mimetypes to database
-	mime.AddExtensionType(".janet", "text/janet")
+	mime.AddExtensionType(".janet",  "text/janet")
 	mime.AddExtensionType(".temple", "text/temple")
-	mime.AddExtensionType(".mdz", "text/temple")
+	mime.AddExtensionType(".mdz",    "text/temple")
 
 	handler := Handler{
 		Addr: fmt.Sprintf("0.0.0.0:%d", parsedFlags.Port),
