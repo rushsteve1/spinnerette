@@ -5,6 +5,7 @@ package bindings
 import "C"
 import (
 	"embed"
+	"log"
 	"strings"
 	"unsafe"
 )
@@ -61,7 +62,10 @@ func moduleLoader(p *C.char, protoEnv *C.JanetTable) *C.JanetTable {
 	default:
 		if val, ok := fileMappings[path]; ok {
 			code, _ := embedded.ReadFile(val)
-			EvalBytes(code, val, nil)
+			_, err := innerEval(env, code, val)
+			if err != nil {
+				log.Println(err.Error())
+			}
 		}
 	}
 
@@ -103,21 +107,18 @@ func pathPred(j C.Janet) C.Janet {
 
 func initModules() *C.JanetTable {
 	env := C.janet_core_env((*C.JanetTable)(C.NULL))
-	// Load the shim functions
-	// When loading them link this there will be no prefix
-	// So the prefix is adde in spin_cfuns
-	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.spin_cfuns)))
+
+	C.janet_cfuns_prefix(env, C.CString("spinternal"), (*C.JanetReg)(unsafe.Pointer(&C.spin_cfuns)))
 
 	bindToEnv(env, "*cache*", C.janet_wrap_table(C.janet_table(0)), "Internal cache table. Use `spin/cache` instead.")
 
 	pred, _ := innerEval(env, []byte("(fn [path] (spinternal/path-pred path))"), "Spinnerette Internal (path-pred loader)")
 	tuple := []C.Janet{pred, jkey("spinnerette")}
 
-	paths := getEnvValue(env, "module/paths")
+	paths := envResolve(env, "module/paths")
 	C.janet_array_push(C.janet_unwrap_array(paths), C.janet_wrap_tuple(C.janet_tuple_n(&tuple[0], 2)))
 
-	loaders := getEnvValue(env, "module/loaders")
-	C.janet_checktype(paths, C.JANET_TABLE)
+	loaders := envResolve(env, "module/loaders")
 	fn := C.janet_wrap_cfunction(C.JanetCFunction(C.loader_shim))
 	C.janet_table_put(C.janet_unwrap_table(loaders), jkey("spinnerette"), fn)
 

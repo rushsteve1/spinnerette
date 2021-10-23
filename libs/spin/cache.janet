@@ -6,7 +6,7 @@
 (defn cache-set
   "Set a value in the cache"
   [key value]
-  (put *cache* key (value (os/time)))
+  (put *cache* key (value (os/time))))
 
 (defn cache-del
   "Delete a value from the cache. Same as setting nil."
@@ -15,8 +15,6 @@
 
 (defmacro with-timeout
   "
-  (with-timeout key timeout & body)
-
   Evaluates the given body and stores it in the Spinnerette cache
   with the given `key` (a keyword).
   Subsequent calls will use the cached version.

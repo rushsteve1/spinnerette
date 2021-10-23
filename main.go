@@ -12,6 +12,7 @@ import (
 	"net/http/fcgi"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	janet "github.com/rushsteve1/spinnerette/bindings"
@@ -30,6 +31,13 @@ var parsedFlags Flags
 var embeddedLibs embed.FS
 
 func main() {
+	// However this means we need at least 2 threads
+	c := runtime.GOMAXPROCS(0)
+	if c < 2 {
+		c = 2
+	}
+	runtime.GOMAXPROCS(c)
+
 	ParseFlags()
 	parsedFlags.Method = strings.ToLower(parsedFlags.Method)
 
@@ -39,9 +47,9 @@ func main() {
 	defer janet.StopJanet()
 
 	// Add mimetypes to database
-	mime.AddExtensionType(".janet",  "text/janet")
+	mime.AddExtensionType(".janet", "text/janet")
 	mime.AddExtensionType(".temple", "text/temple")
-	mime.AddExtensionType(".mdz",    "text/temple")
+	mime.AddExtensionType(".mdz", "text/temple")
 
 	handler := Handler{
 		Addr: fmt.Sprintf("0.0.0.0:%d", parsedFlags.Port),

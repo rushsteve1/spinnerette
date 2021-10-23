@@ -41,12 +41,6 @@ func janetRoutine() {
 
 	// The Janet interpreter is not thread-safe
 	// So we give it it's own entire thread
-	// However this means we need at least 2 threads
-	c := runtime.NumCPU()
-	if c < 2 {
-		c = 2
-	}
-	runtime.GOMAXPROCS(c)
 	runtime.LockOSThread()
 
 	C.janet_init()
@@ -80,7 +74,7 @@ func janetRoutine() {
 		} else {
 			recvChan <- out
 		}
-		
+
 	}
 }
 
@@ -97,7 +91,7 @@ func innerEval(env *C.JanetTable, code []byte, source string) (C.Janet, error) {
 
 	if errno != 0 {
 		return jnil(), fmt.Errorf("janet error number: %d", errno)
-	} 
+	}
 	return out, nil
 }
 
@@ -148,33 +142,33 @@ func bindToEnv(env *C.JanetTable, key string, value C.Janet, doc string) {
 	C.janet_def_sm(env, C.CString(key), value, C.CString(doc), C.CString("janet.go"), -1)
 }
 
-func getEnvValue(env *C.JanetTable, key string) C.Janet {
-	table := C.janet_unwrap_table(C.janet_table_get(env, jsym(key)))
-	return C.janet_table_get(table, jkey("value"))
+func envResolve(env *C.JanetTable, name string) C.Janet {
+	var out C.Janet
+	C.janet_resolve(env, C.janet_symbol(uchars(name), C.int(len(name))), &out)
+	return out
 }
 
 func jbuf(b []byte) C.Janet {
 	buf := C.janet_buffer(C.int(len(b)))
-	C.janet_buffer_push_string(buf, (*C.uchar)(unsafe.Pointer(&b[0])))
+	C.janet_buffer_push_bytes(buf, (*C.uchar)(unsafe.Pointer(&b[0])), C.int(len(b)))
 	return C.janet_wrap_buffer(buf)
 }
 
+func uchars(s string) *C.uchar {
+	return (*C.uchar)(unsafe.Pointer(C.CString(s)))
+}
+
+// These could possibly be replaced by the C macro versions that Janet provides
 func jstr(s string) C.Janet {
-	cstr := (*C.uchar)(unsafe.Pointer(C.CString(s)))
-	str := C.janet_string(cstr, C.int(len(s)))
-	return C.janet_wrap_string(str)
+	return C.janet_wrap_string(C.janet_string(uchars(s), C.int(len(s))))
 }
 
 func jsym(s string) C.Janet {
-	cstr := (*C.uchar)(unsafe.Pointer(C.CString(s)))
-	sym := C.janet_symbol(cstr, C.int(len(s)))
-	return C.janet_wrap_symbol(sym)
+	return C.janet_wrap_symbol(C.janet_symbol(uchars(s), C.int(len(s))))
 }
 
 func jkey(s string) C.Janet {
-	cstr := (*C.uchar)(unsafe.Pointer(C.CString(s)))
-	key := C.janet_keyword(cstr, C.int(len(s)))
-	return C.janet_wrap_keyword(key)
+	return C.janet_wrap_keyword(C.janet_keyword(uchars(s), C.int(len(s))))
 }
 
 func jnil() C.Janet {
