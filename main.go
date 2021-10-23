@@ -4,6 +4,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"html/template"
 	"log"
 	"mime"
 	"net"
@@ -16,8 +17,10 @@ import (
 	"strings"
 
 	janet "github.com/rushsteve1/spinnerette/bindings"
+	"github.com/russross/blackfriday/v2"
 )
 
+// TODO replace flags with a TOML config file
 type Flags struct {
 	Root   string
 	Method string
@@ -118,6 +121,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.janetHandler(w, r, path)
 	case "text/temple; charset=utf-8":
 		h.templeHandler(w, r, path)
+	case "text/html; charset=utf-8":
+		t, err := template.ParseFiles(path)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+		t.Execute(w, r)
+	case "text/markdown; charset=utf-8":
+		h.markdownHandler(w, r, path)
 	default:
 		http.ServeFile(w, r, path)
 	}
@@ -143,4 +154,22 @@ func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path stri
 	}
 
 	janet.Write(j, w)
+}
+
+func (h Handler) markdownHandler(w http.ResponseWriter, r *http.Request, path string) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+
+	md := blackfriday.Run(b)
+
+	t := template.New(path)
+	t.Parse(string(md))
+
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+
+	t.Execute(w, r)
 }
