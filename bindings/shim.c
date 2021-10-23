@@ -7,24 +7,17 @@
 #include "./shared.h"
 #include "_cgo_export.h"
 
-JANET_CFUN(loader_shim) {
-  janet_arity(argc, 1, 2);
-  char* path = (char*) janet_getcstring(argv, 0);
-  return janet_wrap_table(moduleLoader(path, janet_current_fiber()->env));
+JANET_FN_SD(deep_pretty, "(deep-pretty x)", "Returns a pretty string of maximum depth") {
+   janet_arity(argc, 0, -1);
+   JanetBuffer* buf = janet_buffer(128);
+   for (unsigned int i; i < argc; i++) {
+      janet_pretty(buf, -1, JANET_PRETTY_NOTRUNC, argv[i]);
+   }
+   return janet_wrap_buffer(buf);
 }
 
-JANET_CFUN(path_pred_shim) {
-  janet_fixarity(argc, 1);
-  janet_getcstring(argv, 0); // just make sure it's a string
-  return pathPred(argv[0]);
-}
-
-const JanetReg spin_cfuns[] = {
-   {"module-loader", loader_shim,
-       "(spin/module-loader x &args)\n\nLoader for embedded Spinnerette modules."
-   },
-   {"path-pred", path_pred_shim,
-       "(spinternal/path-pred x)\n\nPredicate that verifies and expands import"
-       "paths for bundled libraries."},
-   {NULL, NULL, NULL}
+const JanetRegExt spin_cfuns[] = {
+   // TODO use JANET_REG_SD
+   JANET_REG_("deep-pretty", deep_pretty),
+   JANET_REG_END
 };

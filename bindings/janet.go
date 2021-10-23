@@ -14,26 +14,34 @@ import (
 	"unsafe"
 )
 
-type message struct {
+type evalMsg struct {
 	Code   []byte
 	Source string
 	Req    *http.Request
 }
 
-var sendChan chan message
+type writeMsg struct {
+	J C.Janet
+	W http.ResponseWriter
+}
+
+var quitChan chan bool
+var evalChan chan evalMsg
+var writeChan chan writeMsg
 var recvChan chan C.Janet
 var errChan chan error
 
 func StartJanet() {
-	sendChan = make(chan message)
+	quitChan = make(chan bool)
+	evalChan = make(chan evalMsg)
+	writeChan = make(chan writeMsg)
 	recvChan = make(chan C.Janet)
 	errChan = make(chan error)
 	go janetRoutine()
 }
 
 func StopJanet() {
-	log.Printf("Stopping Janet interpreter routine")
-	close(sendChan)
+	close(quitChan)
 }
 
 func janetRoutine() {
@@ -48,38 +56,52 @@ func janetRoutine() {
 
 	topEnv := initModules()
 
-	for msg := range sendChan {
-		// Ignore messages with no code
-		if len(msg.Code) == 0 {
-			continue
+	for {
+		select {
+		case <-quitChan:
+			log.Printf("Stopping Janet interpreter routine")
+			return
+		case msg := <-evalChan:
+			evalRoutine(msg, topEnv)
+		case msg := <-writeChan:
+			writeResponse(msg.J, msg.W)
 		}
+	}
+}
 
-		env := C.janet_table(0)
-		env.proto = topEnv
+func evalRoutine(msg evalMsg, topEnv *C.JanetTable) {
+	// Ignore messages with no code
+	if len(msg.Code) == 0 {
+		return
+	}
 
-		if msg.Req != nil {
-			req, err := RequestToJanet(msg.Req)
-			if err != nil {
-				errChan <- err
-				continue
-			}
+	env := C.janet_table(0)
+	env.proto = topEnv
 
-			bindToEnv(env, "*request*", req, "Circlet-style HTTP request recieved by Spinnerette.")
-		}
-
-		out, err := innerEval(env, msg.Code, msg.Source)
-
+	if msg.Req != nil {
+		req, err := requestToJanet(msg.Req)
 		if err != nil {
 			errChan <- err
-		} else {
-			recvChan <- out
+			return
 		}
 
+		bindToEnv(env, "*request*", req, "Circlet-style HTTP request recieved by Spinnerette.")
+	}
+
+	out, err := innerEval(env, msg.Code, msg.Source)
+
+	if err != nil {
+		errChan <- err
+	} else {
+		recvChan <- out
 	}
 }
 
 func innerEval(env *C.JanetTable, code []byte, source string) (C.Janet, error) {
-	// TODO this locks up on the second evaluation when the code is different
+	if len(code) == 0 {
+		return jnil(), fmt.Errorf("No code given to eval for source: %s", source)
+	}
+
 	var out C.Janet
 	errno := C.janet_dobytes(
 		env,
@@ -110,13 +132,13 @@ func EvalFilePath(path string, req *http.Request) (C.Janet, error) {
 }
 
 func EvalBytes(code []byte, source string, req *http.Request) (C.Janet, error) {
-	msg := message{
+	msg := evalMsg{
 		Code:   code,
 		Source: source,
 		Req:    req,
 	}
 
-	sendChan <- msg
+	evalChan <- msg
 	select {
 	case out := <-recvChan:
 		return out, nil

@@ -131,7 +131,7 @@ func (h Handler) janetHandler(w http.ResponseWriter, r *http.Request, path strin
 		return
 	}
 
-	janet.WriteResponse(j, w)
+	janet.Write(j, w)
 }
 
 func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path string) {
@@ -142,5 +142,5 @@ func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path stri
 		return
 	}
 
-	janet.WriteResponse(j, w)
+	janet.Write(j, w)
 }

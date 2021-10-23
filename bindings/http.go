@@ -11,16 +11,17 @@ import (
 	"strings"
 )
 
-func WriteResponse(j C.Janet, w http.ResponseWriter) {
+func writeResponse(j C.Janet, w http.ResponseWriter) {
 	switch C.janet_type(j) {
 	case C.JANET_BUFFER:
 		fallthrough
 	case C.JANET_STRING:
-		w.Write([]byte(ToString(j)))
+		b := []byte(ToString(j))
+		go writeReply(w, b)
 	case C.JANET_STRUCT:
-		ResponseFromJanet(w, C.janet_struct_to_table(C.janet_unwrap_struct(j)))
+		responseFromJanet(w, C.janet_struct_to_table(C.janet_unwrap_struct(j)))
 	case C.JANET_TABLE:
-		ResponseFromJanet(w, C.janet_unwrap_table(j))
+		responseFromJanet(w, C.janet_unwrap_table(j))
 	default:
 		http.Error(w, "Script did not return a string or response object", 500)
 	}
@@ -28,7 +29,7 @@ func WriteResponse(j C.Janet, w http.ResponseWriter) {
 
 // This mirrors the structure of the Request object provided by Circlet
 // https://github.com/janet-lang/circlet
-func RequestToJanet(r *http.Request) (C.Janet, error) {
+func requestToJanet(r *http.Request) (C.Janet, error) {
 	body, err := io.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
@@ -57,7 +58,7 @@ func RequestToJanet(r *http.Request) (C.Janet, error) {
 	return C.janet_wrap_table(table), nil
 }
 
-func ResponseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
+func responseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
 	headers := C.janet_table_get(table, jkey("headers"))
 	// TODO there is definitely a better way to do this
 	// Some way to handle "dictionary" types
@@ -79,16 +80,38 @@ func ResponseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
 
 	status := C.janet_table_get(table, jkey("status"))
 	if C.janet_checktype(status, C.JANET_NUMBER) > 0 {
-		w.WriteHeader(int(C.janet_unwrap_integer(status)))
+		code := int(C.janet_unwrap_integer(status))
+		w.WriteHeader(code)
 	} else {
 		http.Error(w, ":status key was not a number", 500)
 	}
 
 	body := C.janet_table_get(table, jkey("body"))
 	if C.janet_checktypes(body, C.JANET_TFLAG_BYTES) > 0 {
-		w.Write([]byte(ToString(body)))
+		b := []byte(ToString(body))
+		go writeReply(w, b)
 	} else {
 		log.Printf(":body key was not a string or buffer and will not be used")
+	}
+}
+
+func writeReply(w http.ResponseWriter, b []byte) {
+	w.Write(b)
+	recvChan <- jnil()
+}
+
+func Write(j C.Janet, w http.ResponseWriter) error {
+	msg := writeMsg{
+		J: j,
+		W: w,
+	}
+
+	writeChan <- msg
+	select {
+	case <-recvChan:
+		return nil
+	case err := <-errChan:
+		return err
 	}
 }
 
