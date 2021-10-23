@@ -23,7 +23,7 @@ func writeResponse(j C.Janet, w http.ResponseWriter) {
 	case C.JANET_TABLE:
 		responseFromJanet(w, C.janet_unwrap_table(j))
 	default:
-		http.Error(w, "Script did not return a string or response object", 500)
+		go errorReply(w, "Script did not return a string or response object", 500)
 	}
 }
 
@@ -60,8 +60,7 @@ func requestToJanet(r *http.Request) (C.Janet, error) {
 
 func responseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
 	headers := C.janet_table_get(table, jkey("headers"))
-	// TODO there is definitely a better way to do this
-	// Some way to handle "dictionary" types
+	// TODO Some way to handle "dictionary" types
 	if C.janet_checktype(headers, C.JANET_STRUCT) > 0 {
 		headers = C.janet_wrap_table(C.janet_struct_to_table(C.janet_unwrap_struct(headers)))
 	}
@@ -83,7 +82,8 @@ func responseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
 		code := int(C.janet_unwrap_integer(status))
 		w.WriteHeader(code)
 	} else {
-		http.Error(w, ":status key was not a number", 500)
+		go errorReply(w, ":status key was not an integer", 500)
+		return
 	}
 
 	body := C.janet_table_get(table, jkey("body"))
@@ -92,7 +92,14 @@ func responseFromJanet(w http.ResponseWriter, table *C.JanetTable) {
 		go writeReply(w, b)
 	} else {
 		log.Printf(":body key was not a string or buffer and will not be used")
+		go writeReply(w, []byte{})
 	}
+
+}
+
+func errorReply(w http.ResponseWriter, s string, c int) {
+	http.Error(w, s, c)
+	recvChan <- jnil()
 }
 
 func writeReply(w http.ResponseWriter, b []byte) {

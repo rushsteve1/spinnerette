@@ -1,12 +1,12 @@
 (defn cache-get
   "Get a value from the cache with an optional default."
   [key &opt dflt]
-  (get *cache* dflt))
+  (get *cache* key dflt))
 
 (defn cache-set
   "Set a value in the cache"
   [key value]
-  (put *cache* key (value (os/time))))
+  (put *cache* key [value (os/time)]))
 
 (defn cache-del
   "Delete a value from the cache. Same as setting nil."
@@ -23,8 +23,10 @@
   "
   [key timeout & body]
   (with-syms [$val $time]
-    ~(let [[,$val ,$time] (,cache-get ,key)]
+    ~(let [[,$val ,$time] (,cache-get ,key [nil -1])]
       # If there is nothing in the cache, or the timeout has passed
       (if (or (nil? ,$val) (> (- (os/time) ,$time) ,timeout))
-        (,cache-set ,key (do ,;body))
+        (let [ret (do ,;body)]
+          (,cache-set ,key ret)
+          ret)
         ,$val))))

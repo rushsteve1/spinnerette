@@ -11,9 +11,6 @@
 # that also automatically handles timeouts
 (import spin/cache)
 
-# TODO this is broken, something is nil that shouldn't
-# Macroexpansion issue?
-
 # Re-runs every 10 minutes (600 seconds)
 (cache/with-timeout :cached-page 600
  (string "I am a cached page that last ran at: " (os/time)))
