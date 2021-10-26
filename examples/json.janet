@@ -1,6 +1,6 @@
-(import spin)
+(import spin/responses :as r)
 
-(spin/json
+(r/json
  {:title "Supported response types"
   :items ["JSON via spin/json"
           "HTML via janet-html, which is built-in"

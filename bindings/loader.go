@@ -20,9 +20,9 @@ var embedded embed.FS
 var fileMappings = map[string]string{
 	"html": "libs/janet-html/src/janet-html.janet",
 
-	"spin/cache":    "libs/spin/cache.janet",
-	"spin/response": "libs/spin/response.janet",
-	"spin":          "libs/spin/init.janet",
+	"spin/cache":     "libs/spin/cache.janet",
+	"spin/responses": "libs/spin/responses.janet",
+	"spin":           "libs/spin/init.janet",
 
 	"spork/argparse":   "libs/spork/spork/argparse.janet",
 	"spork/ev-utils":   "libs/spork/spork/ev-utils.janet",

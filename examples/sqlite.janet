@@ -2,7 +2,7 @@
 
 # Import everything we need
 (import html)
-(import json)
+(import spin/responses :as r)
 (import sqlite3 :as sql)
 
 # Open an SQLite3 database at the file "test.db"
@@ -20,8 +20,5 @@
 # Also delete the database (ONLY FOR TESTING, DON'T DO THIS FOR REAL)
 (os/rm dbfile)
 
-# Return an HTML page with the JSON of the queried data
-(html/encode
- [:html
-    [:body
-       [:pre (json/encode res)]]])
+# Respond with the JSON of the queried data
+(r/json res)
