@@ -1,17 +1,17 @@
 (defn cache-get
   "Get a value from the cache with an optional default."
   [key &opt dflt]
-  (get *cache* key dflt))
+  (get spinternal/cache key dflt))
 
 (defn cache-set
   "Set a value in the cache"
   [key value]
-  (put *cache* key [value (os/time)]))
+  (put spinternal/cache key [value (os/time)]))
 
 (defn cache-del
   "Delete a value from the cache. Same as setting nil."
   [key]
-  (put *cache* key nil))
+  (put spinternal/cache key nil))
 
 (defmacro with-timeout
   "

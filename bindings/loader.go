@@ -80,7 +80,10 @@ func initModules() *C.JanetTable {
 	C.janet_cfuns_ext_prefix(env, C.CString("spinternal"), (*C.JanetRegExt)(unsafe.Pointer(&C.spin_cfuns)))
 
 	// The internal cache used by spin/cache
-	bindToEnv(env, "*cache*", C.janet_wrap_table(C.janet_table(0)), "Internal cache table. Use `spin/cache` to access.")
+	bindToEnv(env, "spinternal/cache",
+		C.janet_wrap_table(C.janet_table(0)),
+		"Internal cache table. Use `spin/cache` to access.",
+	)
 
 	moduleCache := C.janet_unwrap_table(envResolve(env, "module/cache"))
 

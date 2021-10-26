@@ -102,6 +102,8 @@ func innerEval(env *C.JanetTable, code []byte, source string) (C.Janet, error) {
 		return jnil(), fmt.Errorf("No code given to eval for source: %s", source)
 	}
 
+	C.janet_table_put(env, jkey("current-file"), jstr(source))
+
 	var out C.Janet
 	errno := C.janet_dobytes(
 		env,
