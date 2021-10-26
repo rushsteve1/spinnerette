@@ -5,7 +5,7 @@ package bindings
 import "C"
 import (
 	"embed"
-	"strings"
+	"log"
 	"unsafe"
 )
 
@@ -18,11 +18,12 @@ import (
 var embedded embed.FS
 
 var fileMappings = map[string]string{
-	"html":             "libs/janet-html/src/janet-html.janet",
-	"spin":             "libs/spin/init.janet",
-	"spin/cache":       "libs/spin/cache.janet",
-	"spin/response":    "libs/spin/response.janet",
-	"spork":            "libs/spork/spork/init.janet",
+	"html": "libs/janet-html/src/janet-html.janet",
+
+	"spin/cache":    "libs/spin/cache.janet",
+	"spin/response": "libs/spin/response.janet",
+	"spin":          "libs/spin/init.janet",
+
 	"spork/argparse":   "libs/spork/spork/argparse.janet",
 	"spork/ev-utils":   "libs/spork/spork/ev-utils.janet",
 	"spork/fmt":        "libs/spork/spork/fmt.janet",
@@ -37,6 +38,7 @@ var fileMappings = map[string]string{
 	"spork/rpc":        "libs/spork/spork/rpc.janet",
 	"spork/temple":     "libs/spork/spork/temple.janet",
 	"spork/test":       "libs/spork/spork/test.janet",
+	"spork":            "libs/spork/spork/init.janet",
 }
 
 var nativeModules = []string{"json", "sqlite3"}
@@ -47,9 +49,7 @@ func SetupEmbeds(e embed.FS) {
 	embedded = e
 }
 
-//export ModuleLoader
-func ModuleLoader(p *C.char, protoEnv *C.JanetTable) *C.JanetTable {
-	path := C.GoString(p)
+func moduleLoader(path string, protoEnv *C.JanetTable) C.Janet {
 	env := C.janet_table(1024)
 	env.proto = protoEnv
 
@@ -61,58 +61,37 @@ func ModuleLoader(p *C.char, protoEnv *C.JanetTable) *C.JanetTable {
 	default:
 		if val, ok := fileMappings[path]; ok {
 			code, _ := embedded.ReadFile(val)
-			EvalBytes(code, env)
-		}
-	}
-
-	return env
-}
-
-// TODO handle relative paths in bundled modules
-
-//export PathPred
-func PathPred(j C.Janet) C.Janet {
-	path := C.GoString((*C.char)(unsafe.Pointer(C.janet_unwrap_string(j))))
-
-	for _, s := range nativeModules {
-		if s == path {
-			return j
-		}
-	}
-	for s, _ := range fileMappings {
-		if s == path {
-			return j
-		}
-	}
-
-	// TODO this currently allows for user scripts to access bundled libraries
-	// with relative paths when it probably shouldn't
-
-	// Tries to load relative imports to fix init.janet files
-	if strings.HasPrefix(path, "./") {
-		for _, prefix := range prefixes {
-			s := strings.Replace(path, ".", prefix, 1)
-			if _, ok := fileMappings[s]; ok {
-				return jstr(s)
+			_, err := innerEval(env, code, val)
+			if err != nil {
+				log.Println(err.Error())
 			}
 		}
 	}
 
-	return C.janet_wrap_nil()
+	return C.janet_wrap_table(env)
 }
 
-func InitModules(env *C.JanetTable) {
-	// Load the shim functions
-	C.janet_cfuns(env, C.CString(""), (*C.JanetReg)(unsafe.Pointer(&C.shim_cfuns)))
+// Sets up the environment and eagerly loads all bundled modules into
+// module/cache
+func initModules() *C.JanetTable {
+	env := C.janet_core_env((*C.JanetTable)(C.NULL))
 
-	pred, _ := EvalString("(fn [path] (spinternal/path-pred path))", env)
-	tuple := []C.Janet{pred, jkey("spinnerette")}
+	// Load the spinternal module into the global environment
+	C.janet_cfuns_ext_prefix(env, C.CString("spinternal"), (*C.JanetRegExt)(unsafe.Pointer(&C.spin_cfuns)))
 
-	paths := getEnvValue(env, "module/paths")
-	C.janet_array_push(C.janet_unwrap_array(paths), C.janet_wrap_tuple(C.janet_tuple_n(&tuple[0], 2)))
+	// The internal cache used by spin/cache
+	bindToEnv(env, "*cache*", C.janet_wrap_table(C.janet_table(0)), "Internal cache table. Use `spin/cache` to access.")
 
-	loaders := getEnvValue(env, "module/loaders")
-	C.janet_checktype(paths, C.JANET_TABLE)
-	fn := C.janet_wrap_cfunction(C.JanetCFunction(C.loader_shim))
-	C.janet_table_put(C.janet_unwrap_table(loaders), jkey("spinnerette"), fn)
+	moduleCache := C.janet_unwrap_table(envResolve(env, "module/cache"))
+
+	// TODO relative imports within imports
+
+	for _, s := range nativeModules {
+		C.janet_table_put(moduleCache, jstr(s), moduleLoader(s, env))
+	}
+	for s := range fileMappings {
+		C.janet_table_put(moduleCache, jstr(s), moduleLoader(s, env))
+	}
+
+	return env
 }

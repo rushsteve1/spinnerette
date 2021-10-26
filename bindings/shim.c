@@ -7,55 +7,25 @@
 #include "./shared.h"
 #include "_cgo_export.h"
 
-// TODO make these static?
-Janet loader_shim(int32_t argc, Janet *argv) {
-  janet_arity(argc, 1, 2);
-  char* path = (char*) janet_getcstring(argv, 0);
-  return janet_wrap_table(ModuleLoader(path, janet_current_fiber()->env));
+JANET_FN_SD(deep_pretty, "(spinternal/deep-pretty x)", "Returns a pretty string of maximum depth") {
+   janet_arity(argc, 0, -1);
+   JanetBuffer* buf = janet_buffer(128);
+   for (unsigned int i; i < argc; i++) {
+      janet_pretty(buf, -1, JANET_PRETTY_NOTRUNC, argv[i]);
+   }
+   return janet_wrap_buffer(buf);
 }
 
-Janet pretty(int32_t argc, Janet *argv) {
-  janet_fixarity(argc, 1);
-  return janet_wrap_buffer(janet_pretty(NULL, 5, JANET_PRETTY_NOTRUNC, argv[0]));
+JANET_FN_SD(markdown_shim, "(spinternal/markdown str)", "Renders a Markdown string to HTML") {
+   janet_fixarity(argc, 1);
+   char* s = (char*)janet_unwrap_string(argv[0]);
+   uint8_t* md = renderMarkdown(s, strlen(s));
+   return janet_wrap_string(md);
 }
 
-Janet path_pred_shim(int32_t argc, Janet *argv) {
-  janet_fixarity(argc, 1);
-  janet_getcstring(argv, 0); // just make sure it's a string
-  return PathPred(argv[0]);
-}
-
-Janet cache_get_shim(int32_t argc, Janet *argv) {
-  janet_fixarity(argc, 1);
-  char* key = (char*)janet_getkeyword(argv, 0);
-  return CacheGet(key);
-}
-
-Janet cache_set_shim(int32_t argc, Janet *argv) {
-  janet_fixarity(argc, 2);
-  char* key = (char*)janet_getkeyword(argv, 0);
-  Janet value = argv[1];
-  return CacheSet(key, value);
-}
-
-const JanetReg shim_cfuns[] = {
-   {"spinternal/module-loader", loader_shim,
-       "(spin/module-loader x &args)\n\nLoader for embedded Spinnerette modules."
-   },
-   {"spinternal/path-pred", path_pred_shim,
-       "(spinternal/path-pred x)\n\nPredicate that verifies and expands import"
-       "paths for bundled libraries."},
-   {"spinternal/raw-cache-get", cache_get_shim,
-       "Internal API. Use spin/cache instead."
-       "(spinternal/cache-get key)\n\nGets a value from the Spinnerette cache."
-       "Returns a tuple of the value and the UNIX time that it was cached."
-       "If the key was not in the cache returns (nil -1)"},
-   {"spinternal/raw-cache-set", cache_set_shim,
-       "Internal API. Use spin/cache instead."
-       "(spinternal/cache-set key value)\n\nSets a value in the Spinnerette cache."
-       "Returns the given `value`."},
-   {"pretty", pretty,
-       "(pretty x)\n\nReturns the non-truncated pretty string."
-   },
-   {NULL, NULL, NULL}
+const JanetRegExt spin_cfuns[] = {
+   // TODO use JANET_REG_SD
+   JANET_REG_("deep-pretty", deep_pretty),
+   JANET_REG_("markdown", markdown_shim),
+   JANET_REG_END
 };

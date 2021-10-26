@@ -4,6 +4,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"html/template"
 	"log"
 	"mime"
 	"net"
@@ -12,11 +13,14 @@ import (
 	"net/http/fcgi"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	janet "github.com/rushsteve1/spinnerette/bindings"
+	"github.com/russross/blackfriday/v2"
 )
 
+// TODO replace flags with a TOML config file
 type Flags struct {
 	Root   string
 	Method string
@@ -30,19 +34,32 @@ var parsedFlags Flags
 var embeddedLibs embed.FS
 
 func main() {
+	// However this means we need at least 2 threads
+	c := runtime.GOMAXPROCS(0)
+	if c < 2 {
+		c = 2
+	}
+	runtime.GOMAXPROCS(c)
+
 	ParseFlags()
 	parsedFlags.Method = strings.ToLower(parsedFlags.Method)
 
+	// Setup the Janet interpreter
 	janet.SetupEmbeds(embeddedLibs)
+	janet.StartJanet()
+	defer janet.StopJanet()
+
+	// Add mimetypes to database
 	mime.AddExtensionType(".janet", "text/janet")
 	mime.AddExtensionType(".temple", "text/temple")
+	mime.AddExtensionType(".mdz", "text/temple")
 
 	handler := Handler{
 		Addr: fmt.Sprintf("0.0.0.0:%d", parsedFlags.Port),
 	}
 
 	if parsedFlags.Method == "http" {
-		log.Printf("Starting HTTP server on port %d", parsedFlags.Port)
+		log.Printf("Starting HTTP server at http://%s", handler.Addr)
 		http.ListenAndServe(handler.Addr, handler)
 	} else if parsedFlags.Method == "fastcgi" || parsedFlags.Method == "fcgi" {
 		var listen net.Listener
@@ -104,49 +121,55 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.janetHandler(w, r, path)
 	case "text/temple; charset=utf-8":
 		h.templeHandler(w, r, path)
+	case "text/html; charset=utf-8":
+		t, err := template.ParseFiles(path)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+		t.Execute(w, r)
+	case "text/markdown; charset=utf-8":
+		h.markdownHandler(w, r, path)
 	default:
 		http.ServeFile(w, r, path)
 	}
 }
 
 func (h Handler) janetHandler(w http.ResponseWriter, r *http.Request, path string) {
-	janet.Init()
-	defer janet.DeInit()
-
-	env, err := janet.RequestEnv(r)
-	if err != nil {
-		http.Error(w, "Could not build request env", 500)
-		log.Println(err)
-		return
-	}
-
-	j, err := janet.EvalFilePath(path, env)
+	j, err := janet.EvalFilePath(path, r)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		log.Println(err.Error())
 		return
 	}
 
-	janet.WriteResponse(j, w)
+	janet.Write(j, w)
 }
 
 func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path string) {
-	janet.Init()
-	defer janet.DeInit()
-
-	env, err := janet.RequestEnv(r)
-	if err != nil {
-		http.Error(w, "Could not build request env", 500)
-		log.Println(err)
-		return
-	}
-
-	j, err := janet.RenderTemple(path, env)
+	j, err := janet.RenderTemple(path, r)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		log.Println(err.Error())
 		return
 	}
 
-	janet.WriteResponse(j, w)
+	janet.Write(j, w)
+}
+
+func (h Handler) markdownHandler(w http.ResponseWriter, r *http.Request, path string) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+
+	md := blackfriday.Run(b)
+
+	t := template.New(path)
+	t.Parse(string(md))
+
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+	}
+
+	t.Execute(w, r)
 }

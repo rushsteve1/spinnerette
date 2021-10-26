@@ -21,7 +21,6 @@ sqlite: bindings/libsqlite3.a
 
 
 spinnerette: $(ALLFILES)
-	go build -v ./...
 	go build -v
 
 test: $(ALLFILES)
@@ -42,7 +41,7 @@ bindings/janet/README.md:
 	git submodule update --init --recursive
 
 
-.PHONY: clean clean-janet run
+.PHONY: clean clean-janet clean-sqlite run fmt
 
 clean: clean-janet clean-sqlite
 	$(RM) -f spinnerette
@@ -55,5 +54,8 @@ clean-sqlite:
 
 run: spinnerette
 	./$<
+
+fmt:
+	go fmt ./...
 
 # end

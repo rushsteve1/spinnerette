@@ -20,3 +20,8 @@ spinnerette
 
 # Testing file
 /test.janet
+
+# Editor files
+.vscode
+.idea
+*.swp

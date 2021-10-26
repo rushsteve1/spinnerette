@@ -9,10 +9,7 @@
 
 typedef struct { JanetReg *cfuns; } _cfun_ns;
 
-Janet loader_shim(int32_t argc, Janet *argv);
-Janet path_pred_shim(int32_t argc, Janet *argv);
-
-extern const JanetReg shim_cfuns[];
+extern const JanetRegExt spin_cfuns[];
 extern _cfun_ns const sqlite3_ns;
 extern _cfun_ns const json_ns;
 
