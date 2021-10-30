@@ -9,7 +9,7 @@ CFLAGS=-std=c99 -Wall -Wextra -fPIC -O2
 
 GOFILES=$(wildcard **/*.go)
 CFILES=$(wildcard bindings/*.c)
-JANETFILES=main.go $(wildcard libs/spin/*.janet)
+JANETFILES=main.go libs/startup.janet $(wildcard libs/spin/*.janet)
 NATIVEFILES=bindings/janet/build/libjanet.a bindings/libsqlite3.a
 ALLFILES=$(GOFILES) $(JANETFILES) $(CFILES) $(NATIVEFILES)
 

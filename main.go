@@ -30,7 +30,7 @@ type Flags struct {
 
 var parsedFlags Flags
 
-//go:embed libs/janet-html/src/janet-html.janet libs/spork/spork/*.janet libs/spin/*.janet
+//go:embed libs/startup.janet libs/janet-html/src/janet-html.janet libs/spork/spork/*.janet libs/spin/*.janet
 var embeddedLibs embed.FS
 
 func main() {

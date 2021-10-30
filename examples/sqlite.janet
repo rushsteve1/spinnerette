@@ -1,7 +1,6 @@
 # This is a more complex example involving the native SQLite3 and JSON libraries
 
 # Import everything we need
-(import html)
 (import spin/responses :as r)
 (import sqlite3 :as sql)
 

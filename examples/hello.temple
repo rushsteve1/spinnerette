@@ -2,7 +2,7 @@
 <!-- These templates can have Janet code mixed into them in a few ways-->
 
 <!-- This will be evaluated at compile-time -->
-{$ (import html) $}
+{$ (import janet-html :as html) $}
 
 <html>
     <body>
