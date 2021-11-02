@@ -14,13 +14,11 @@
   (put spinternal/cache key nil))
 
 (defmacro with-timeout
-  "
-  Evaluates the given body and stores it in the Spinnerette cache
+  "Evaluates the given body and stores it in the Spinnerette cache
   with the given `key` (a keyword).
   Subsequent calls will use the cached version.
-  Once the `timeout` (integer seconds) has passed the body will be re-run the
-  body and cached again.
-  "
+  Once the `timeout` (integer seconds) has passed the body will be
+  re-run the body and cached again."
   [key timeout & body]
   (with-syms [$val $time]
     ~(let [[,$val ,$time] (,cache-get ,key [nil -1])]

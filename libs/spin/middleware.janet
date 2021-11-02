@@ -1,6 +1,10 @@
 # These middleware are taken from Circlet
 # https://github.com/janet-lang/circlet/blob/master/circlet_lib.janet
 
+# Copyright (c) 2018 Calvin Rose
+# Copyright (c) 2004-2013 Sergey Lyubka <valenok@gmail.com>
+# Copyright (c) 2013-2018 Cesanta Software Limited
+
 (defn middleware
   "Coerce any type to http middleware"
   [x]

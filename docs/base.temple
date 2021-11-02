@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Spinnerette</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="/style.css">
+    </head>
+    <body>
+        <header>{- (args :header) -}</header>
+        <main>{- (args :main) -}</main>
+        <footer>
+            <div><a href="#">Back to Top</a></div>
+            <div>
+                <a href="https://github.com/rushsteve1/spinnerette">
+                    Check us out on GitHub
+                </a>
+            </div>
+        </footer>
+    </body>
+</html>
