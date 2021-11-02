@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -122,12 +121,7 @@ func Write(j C.Janet, w http.ResponseWriter) error {
 	}
 }
 
-func RenderTemple(path string, req *http.Request) (C.Janet, error) {
-	code, err := os.ReadFile(path)
-	if err != nil {
-		return jnil(), err
-	}
-
+func RenderTemple(code []byte, path string, req *http.Request) (C.Janet, error) {
 	escapedCode := strings.ReplaceAll(string(code), "\"", "\\\"")
 	path = strings.ReplaceAll(path, "\"", "\\\"")
 

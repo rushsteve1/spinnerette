@@ -4,7 +4,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
-	"html/template"
+	"html"
 	"log"
 	"mime"
 	"net"
@@ -121,12 +121,6 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.janetHandler(w, r, path)
 	case "text/temple; charset=utf-8":
 		h.templeHandler(w, r, path)
-	case "text/html; charset=utf-8":
-		t, err := template.ParseFiles(path)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-		}
-		t.Execute(w, r)
 	case "text/markdown; charset=utf-8":
 		h.markdownHandler(w, r, path)
 	default:
@@ -146,7 +140,12 @@ func (h Handler) janetHandler(w http.ResponseWriter, r *http.Request, path strin
 }
 
 func (h Handler) templeHandler(w http.ResponseWriter, r *http.Request, path string) {
-	j, err := janet.RenderTemple(path, r)
+	code, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	j, err := janet.RenderTemple(code, path, r)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		log.Println(err.Error())
@@ -162,14 +161,20 @@ func (h Handler) markdownHandler(w http.ResponseWriter, r *http.Request, path st
 		http.Error(w, err.Error(), 500)
 	}
 
-	md := blackfriday.Run(b)
+	params := blackfriday.HTMLRendererParameters{
+		Flags: blackfriday.HTMLFlagsNone,
+	}
+	rend := blackfriday.NewHTMLRenderer(params)
 
-	t := template.New(path)
-	t.Parse(string(md))
+	md := blackfriday.Run(b, blackfriday.WithRenderer(rend))
+	md = []byte(html.UnescapeString(string(md)))
 
+	j, err := janet.RenderTemple(md, path, r)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
+		log.Println(err.Error())
+		return
 	}
 
-	t.Execute(w, r)
+	janet.Write(j, w)
 }

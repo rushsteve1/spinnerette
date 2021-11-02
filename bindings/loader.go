@@ -17,12 +17,10 @@ import (
 
 var embedded embed.FS
 
+// The paths to the files that will be loaded
+// Files will be loaded IN ORDER, so be careful with the ordering here
 var filePaths = []string{
 	"libs/janet-html/src/janet-html.janet",
-
-	"libs/spin/cache.janet",
-	"libs/spin/responses.janet",
-	"libs/spin/init.janet",
 
 	"libs/spork/spork/msg.janet",
 	"libs/spork/spork/argparse.janet",
@@ -38,6 +36,10 @@ var filePaths = []string{
 	"libs/spork/spork/temple.janet",
 	"libs/spork/spork/test.janet",
 	"libs/spork/spork/init.janet",
+
+	"libs/spin/cache.janet",
+	"libs/spin/responses.janet",
+	"libs/spin/init.janet",
 }
 
 const startupPath string = "libs/startup.janet"

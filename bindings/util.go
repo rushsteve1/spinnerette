@@ -4,8 +4,6 @@ package bindings
 import "C"
 import (
 	"unsafe"
-
-	"github.com/russross/blackfriday/v2"
 )
 
 func ToString(janet C.Janet) string {
@@ -52,12 +50,4 @@ func jkey(s string) C.Janet {
 
 func jnil() C.Janet {
 	return C.janet_wrap_nil()
-}
-
-// Exported Functions
-
-//export renderMarkdown
-func renderMarkdown(str unsafe.Pointer, len C.int) *C.uchar {
-	md := blackfriday.Run(C.GoBytes(str, len))
-	return uchars(string(md))
 }

@@ -2,7 +2,10 @@
 <!-- These templates can have Janet code mixed into them in a few ways-->
 
 <!-- This will be evaluated at compile-time -->
-{$ (import janet-html :as html) $}
+{$
+  (import janet-html :as html)
+  (import spin/markdown :as md)
+$}
 
 <html>
     <body>
@@ -18,5 +21,8 @@
 
       <!-- Printing in Temple also adds to the page -->
       {% (print "I get added anyway!") %}
+
+      <!-- You can even nest templated Markdown -->
+      {- (md/temple "**Hello from Markdown, {{ (args :x) }}**" :x "yes") -}
     </body>
 </html>
